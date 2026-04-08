@@ -18,7 +18,9 @@ go
    Description:  Updates SmartStream table DBShrpn..emp_assignment.
 
                  Cloned from DBShrpn..hsp_upd_hasg in order to use with
-                 HCM Interface position title update in procedure DBShrpn..usp_ins_position_title.
+                 HCM Interface
+                    1) Position Title update - DBShrpn..usp_ins_position_title.
+                    2) Salary Change - DBShrpn.dbo.usp_ins_salary_change
 
    Parameters:
 

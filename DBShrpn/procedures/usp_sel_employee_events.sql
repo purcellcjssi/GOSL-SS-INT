@@ -152,18 +152,20 @@ BEGIN
     , annual_hrs_per_fte                    money               NULL    --varchar(255)        NULL
     , annual_rate                           money               NULL    --varchar(255)        NULL
     , birth_date                            datetime            NULL    --varchar(255)        NULL
-    , gender                                char(01)        NULL
+    , gender                                char(01)            NULL
     , addr_fmt_code                         char(06)            NULL
-    , country_code                          char(02)        NULL
-    , addr_line_1                           varchar(35)        NULL
-    , addr_line_2                           varchar(35)        NULL
-    , addr_line_3                           varchar(35)        NULL
-    , addr_line_4                           varchar(35)        NULL
-    , city_name                             varchar(35)        NULL
-    , state_prov                            char(09)        NULL
-    , postal_code                           char(09)        NULL
+    , country_code                          char(02)            NULL
+    , addr_line_1                           varchar(35)         NULL
+    , addr_line_2                           varchar(35)         NULL
+    , addr_line_3                           varchar(35)         NULL
+    , addr_line_4                           varchar(35)         NULL
+    , city_name                             varchar(35)         NULL
+    , state_prov                            char(09)            NULL
+    , postal_code                           char(09)            NULL
     , county_name                           varchar(255)        NULL
     , region_name                           varchar(255)        NULL
+    --, pay_frequency_code                    char(01)            NULL
+    , pay_rate_type_code                    char(01)            NULL
     , job_or_pos_id                         char(10)            NULL    -- derived value based on file_source
     )
 
@@ -191,7 +193,13 @@ BEGIN
         ---------------------------------------------------------------------------
         ---------------------------------------------------------------------------
         -- Clear debug table
-        TRUNCATE TABLE DBShrpn.dbo.ghr_debug;
+        IF EXISTS (
+                   SELECT 1
+                   FROM sys.objects
+                   WHERE (object_id = OBJECT_ID(N'[dbo].[ghr_debug]'))
+                     AND ([type] IN (N'U'))
+                  )
+            TRUNCATE TABLE DBShrpn.dbo.ghr_debug;
         ---------------------------------------------------------------------------
         ---------------------------------------------------------------------------
 
@@ -273,7 +281,8 @@ BEGIN
             , t.county_name
             , t.region_name
 
-            , t.pay_frequency_code
+            --, t.pay_frequency_code
+            , t.pay_rate_type_code
 
             , DBShrpn.dbo.ufn_ret_job_or_pos_id(t.file_source, t.empl_id) AS job_or_pos_id
 
@@ -352,7 +361,8 @@ BEGIN
             , t.county_name
             , t.region_name
 
-            , t.pay_frequency_code
+            --, t.pay_frequency_code
+            , t.pay_rate_type_code
 
             , DBShrpn.dbo.ufn_ret_job_or_pos_id(t.file_source, t.empl_id) AS job_or_pos_id
             , @w_activity_date                                              AS activity_date
@@ -406,7 +416,7 @@ BEGIN
 
         END
 
-/*
+
         -- GOSL: Salaries are not interfaced into SS. Will be managed manually by user
         ---------------------------------------------------------------------------
         -- Salary Change (Event 02)
@@ -420,16 +430,13 @@ BEGIN
                     WHERE (event_id = @v_EVENT_ID_SALARY_CHANGE)
                    )
         BEGIN
-            EXEC	DBShrpn.dbo.usp_ins_salary_change
-                    @w_userid,
-                    @v_PSC_BATCHNAME,
-                    @w_PSC_QUALIFIER,
-                    @w_activity_date,
-                    @w_userid,
-                    @w_activity_status,
-                    @w_status
+            EXEC @w_status = DBShrpn.dbo.usp_ins_salary_change
+                        @p_user_id         = @w_userid
+                      , @p_batchname       = @v_PSC_BATCHNAME
+                      , @p_qualifier       = @w_PSC_QUALIFIER
+                      , @p_activity_date   = @w_activity_date
+
         END
-*/
 
 
         ---------------------------------------------------------------------------

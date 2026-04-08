@@ -101,6 +101,12 @@ BEGIN
     , empl_id                               varchar(255)            NOT NULL
     , pay_group_id                          varchar(255)            NOT NULL
     , job_or_pos_id                         varchar(255)            NOT NULL
+
+    , annual_salary_amt                     varchar(255)            NOT NULL
+    , annual_hrs_per_fte                    varchar(255)            NOT NULL
+    , annual_rate                           varchar(255)            NOT NULL
+    , pay_rate_type_code                    varchar(255)            NOT NULL
+
     , position_title                        varchar(255)            NOT NULL
     , emp_status_code                       varchar(255)            NOT NULL
     , pay_element_id                        varchar(255)            NOT NULL
@@ -175,6 +181,12 @@ BEGIN
            , 'Employer ID'                                              -- empl_id
            , 'Pay Group ID'                                             -- pay_group_id
            , 'Job/Position ID'                                          -- job_or_pos_id
+
+           , 'Annual Salary Amount'
+           , 'Annual Hours Per FTE'
+           , 'Annual Rate'
+           , 'Pay Rate Type Code'
+
            , 'Position Title'                                           -- position_title
            , 'Employee Status Code'                                     -- emp_status_code
            , 'Pay Element ID'                                           -- pay_element_id
@@ -204,6 +216,12 @@ BEGIN
          , ''                                                           -- empl_id
          , ''                                                           -- pay_group_id
          , ''                                                           -- job_or_pos_id
+
+         , ''                                                           -- annual_salary_amt
+         , ''                                                           -- annual_hrs_per_fte
+         , ''                                                           -- annual_rate
+         , ''                                                           -- pay_rate_type_code
+
          , ''                                                           -- position_title
          , ''                                                           -- emp_status_code
          , ''                                                           -- pay_element_id
@@ -254,6 +272,12 @@ BEGIN
          , aud.empl_id
          , aud.pay_group_id
          , aud.job_or_pos_id
+
+         , aud.annual_salary_amt
+         , aud.annual_hrs_per_fte
+         , aud.annual_rate
+         , ISNULL(aud.pay_rate_type_code, '') AS pay_rate_type_code
+
          , aud.position_title
          , aud.emp_status_code
          , aud.pay_element_id
@@ -298,6 +322,12 @@ BEGIN
             , ''                                                           -- empl_id
             , ''                                                           -- pay_group_id
             , ''                                                           -- job_or_pos_id
+
+            , ''                                                           -- annual_salary_amt
+            , ''                                                           -- annual_hrs_per_fte
+            , ''                                                           -- annual_rate
+            , ''                                                           -- pay_rate_type_code
+
             , ''                                                           -- position_title
             , ''                                                           -- emp_status_code
             , ''                                                           -- pay_element_id
@@ -337,6 +367,12 @@ BEGIN
             , ''                                                           -- empl_id
             , ''                                                           -- pay_group_id
             , ''                                                           -- job_or_pos_id
+
+            , ''                                                           -- annual_salary_amt
+            , ''                                                           -- annual_hrs_per_fte
+            , ''                                                           -- annual_rate
+            , ''                                                           -- pay_rate_type_code
+
             , ''                                                           -- position_title
             , ''                                                           -- emp_status_code
             , ''                                                           -- pay_element_id
@@ -366,6 +402,12 @@ BEGIN
          , empl_id
          , pay_group_id
          , job_or_pos_id
+
+         , annual_salary_amt
+         , annual_hrs_per_fte
+         , annual_rate
+         , pay_rate_type_code
+
          , position_title
          , emp_status_code
          , pay_element_id

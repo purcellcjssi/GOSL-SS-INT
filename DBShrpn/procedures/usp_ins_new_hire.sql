@@ -251,8 +251,8 @@ BEGIN
     DECLARE @postal_code                            char(09)
     DECLARE @county_name                            varchar(255)
     DECLARE @region_name                            varchar(255)
-    DECLARE @pay_frequency_code                     varchar(255)
-
+    --DECLARE @pay_frequency_code                     char(01)
+    DECLARE @pay_rate_type_code                     char(01)
 
     CREATE TABLE #tbl_ghr_msg
         (
@@ -357,7 +357,8 @@ BEGIN
             , @postal_code
             , @county_name
             , @region_name
-            , @pay_frequency_code
+            --, @pay_frequency_code
+            , @pay_rate_type_code
             , @w_job_or_pos_id
 
 
@@ -848,7 +849,17 @@ BEGIN
                 ---------------------------------------------------------------------------
                 -- Universally setup all associates as monthly; 8 hrs/day; 40 hrs/week
                 -- Indicates that the associate is setup as annually
-                IF (@pay_rate = @annual_rate)
+                --IF (@pay_rate = @annual_rate)
+
+                -- Pay Rate Type Code:
+                -- 1 - Hourly
+                -- 2 - Annual Salary - Not Used - Will setup as monthly if code is used
+                -- 3 - Monthly Salary
+                -- Monthly Salary
+                IF (
+                    (@pay_rate_type_code = '3') OR
+                    (@pay_rate_type_code = '2')
+                   )
                     SELECT @w_annual_salary_amt       = @pay_rate
                          , @w_pay_basis_code          = '2'     -- Period Salary
                          , @w_pd_salary_amt           = ROUND(@pay_rate / 12, 2)
@@ -1183,7 +1194,9 @@ BYPASS_EMPLOYEE:
                 , @postal_code
                 , @county_name
                 , @region_name
-                , @pay_frequency_code
+                --, @pay_frequency_code
+                , @pay_rate_type_code
+
                 , @w_job_or_pos_id
 
         END  -- Error Loop
