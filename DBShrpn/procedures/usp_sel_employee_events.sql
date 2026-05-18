@@ -202,24 +202,24 @@ BEGIN
         SET @v_step_position = 'Insert INTO #ghr_employee_events_temp'
 
         INSERT INTO #ghr_employee_events_temp
-        SELECT t.event_id
-            , t.emp_id
+        SELECT LEFT(t.event_id, 2) AS event_id
+            , LEFT(t.emp_id, 15) AS emp_id
             , CASE
                 WHEN LEN(RTRIM(t.eff_date)) < 8 THEN @v_BAD_DATE_INDICATOR
                 ELSE COALESCE(TRY_CONVERT(datetime, t.eff_date), @v_BAD_DATE_INDICATOR)
               END AS eff_date
-            , t.first_name
-            , t.first_middle_name
-            , t.last_name
-            , UPPER(t.empl_id) AS empl_id
-            , t.national_id_type_code
-            , t.national_id
+            , LEFT(t.first_name, 25) AS first_name
+            , LEFT(t.first_middle_name, 25) AS first_middle_name
+            , LEFT(t.last_name, 25) AS last_name
+            , UPPER(LEFT(t.empl_id, 15)) AS empl_id
+            , LEFT(t.national_id_type_code, 5) AS national_id_type_code
+            , LEFT(t.national_id, 20) AS national_id
             , COALESCE(TRY_CONVERT(int, t.organization_group_id), 0) AS organization_group_id
             , @v_EMPTY_SPACE AS organization_chart_name     -- t.organization_chart_name  -- wrong value
             , @v_EMPTY_SPACE AS organization_unit_name      -- t.organization_unit_name
-            , t.emp_status_classn_code
+            , LEFT(t.emp_status_classn_code, 2) AS emp_status_classn_code
             , LEFT(t.position_title, 50) AS position_title    -- trim value since HCM sends it over as char(60)
-            , UPPER(t.employment_type_code) AS employment_type_code
+            , LEFT(UPPER(t.employment_type_code), 70) AS employment_type_code
             , COALESCE(TRY_CONVERT(money, t.annual_salary_amt), 0.00) AS annual_salary_amt
             , CASE
                 WHEN LEN(RTRIM(t.begin_date)) < 8 THEN @v_BAD_DATE_INDICATOR
@@ -229,14 +229,14 @@ BEGIN
                 WHEN LEN(RTRIM(t.end_date)) < 8 THEN @v_BAD_DATE_INDICATOR
                 ELSE COALESCE(TRY_CONVERT(datetime, t.end_date), @v_BAD_DATE_INDICATOR)
                 END AS end_date
-            , t.pay_status_code
-            , UPPER(t.pay_group_id) AS pay_group_id
-            , t.pay_element_ctrl_grp_id
-            , t.time_reporting_meth_code
-            , t.employment_info_chg_reason_cd
-            , t.emp_location_code
-            , t.emp_status_code
-            , t.reason_code
+            , LEFT(t.pay_status_code, 1) AS pay_status_code
+            , UPPER(LEFT(t.pay_group_id, 10)) AS pay_group_id
+            , LEFT(t.pay_element_ctrl_grp_id, 10) AS pay_element_ctrl_grp_id
+            , LEFT(t.time_reporting_meth_code, 1) AS time_reporting_meth_code
+            , LEFT(t.employment_info_chg_reason_cd, 5) AS employment_info_chg_reason_cd
+            , LEFT(t.emp_location_code, 10) AS emp_location_code
+            , LEFT(t.emp_status_code, 2) AS emp_status_code
+            , LEFT(t.reason_code, 5) AS reason_code
             , t.emp_expected_return_date
             , CASE
                 WHEN LEN(RTRIM(t.pay_through_date)) < 8 THEN @v_BAD_DATE_INDICATOR
@@ -246,32 +246,32 @@ BEGIN
                 WHEN LEN(RTRIM(t.emp_death_date)) < 8 THEN @v_BAD_DATE_INDICATOR
                 ELSE COALESCE(TRY_CONVERT(datetime, t.emp_death_date), @v_BAD_DATE_INDICATOR)
               END AS emp_death_date
-            , t.consider_for_rehire_ind
-            , UPPER(t.pay_element_id) AS pay_element_id
+            , LEFT(t.consider_for_rehire_ind, 1) AS consider_for_rehire_ind
+            , UPPER(LEFT(t.pay_element_id, 10)) AS pay_element_id
             , COALESCE(TRY_CONVERT(money, t.emp_calculation), 0.00) AS emp_calculation
-            , t.tax_flag        -- CASE t.tax_flag WHEN '1' THEN 'Y' WHEN '0' THEN 'N' ELSE tax_flag END tax_flag
-            , t.nic_flag        -- CASE t.nic_flag WHEN '1' THEN 'Y' WHEN '0' THEN 'N' ELSE nic_flag END nic_flag
+            , LEFT(t.tax_flag, 1) AS tax_flag        -- CASE t.tax_flag WHEN '1' THEN 'Y' WHEN '0' THEN 'N' ELSE tax_flag END tax_flag
+            , LEFT(t.nic_flag, 1) AS nic_flag        -- CASE t.nic_flag WHEN '1' THEN 'Y' WHEN '0' THEN 'N' ELSE nic_flag END nic_flag
             , COALESCE(TRY_CONVERT(money, t.tax_ceiling_amt), 0.00) AS tax_ceiling_amt
-            , t.labor_grp_code
-            , t.file_source
+            , LEFT(t.labor_grp_code, 50) AS labor_grp_code
+            , LEFT(t.file_source, 50) AS file_source
             , COALESCE(TRY_CONVERT(money, t.annual_hrs_per_fte), 0.00) AS annual_hrs_per_fte
             , COALESCE(TRY_CONVERT(money, t.annual_rate), 0.00) AS annual_rate
             , CASE
                 WHEN LEN(RTRIM(t.birth_date)) < 8 THEN @v_BAD_DATE_INDICATOR
                 ELSE COALESCE(TRY_CONVERT(datetime, t.birth_date), @v_BAD_DATE_INDICATOR)
               END AS birth_date
-            , t.gender
-            , CASE t.country_code WHEN 'LCA' THEN 'EC1' ELSE 'GN4' END addr_fmt_code    -- derive address format code based on country code
+            , LEFT(t.gender, 1) AS gender
+            , LEFT(CASE t.country_code WHEN 'LCA' THEN 'EC1' ELSE 'GN4' END, 6) AS addr_fmt_code    -- derive address format code based on country code
             , LEFT(t.country_code, 2) AS country_code
             , LEFT(t.addr_line_1, 35) AS addr_line_1
             , LEFT(t.addr_line_2, 35) AS addr_line_2
-            , CASE t.country_code WHEN 'LCA' THEN LTRIM(RTRIM(t.addr_line_3 + ' ' + t.addr_line_4)) ELSE t.addr_line_3 END addr_line_3        -- combine line 3 and 4 if St Lucia
-            , CASE t.country_code WHEN 'LCA' THEN @v_EMPTY_SPACE ELSE t.addr_line_4 END addr_line_4
+            , LEFT(CASE t.country_code WHEN 'LCA' THEN LTRIM(RTRIM(t.addr_line_3 + ' ' + t.addr_line_4)) ELSE t.addr_line_3 END, 35) AS addr_line_3        -- combine line 3 and 4 if St Lucia
+            , LEFT(CASE t.country_code WHEN 'LCA' THEN @v_EMPTY_SPACE ELSE t.addr_line_4 END, 35) AS addr_line_4
             , LEFT(t.city_name, 35) AS city_name
             , LEFT(t.state_prov, 9) AS state_prov
             , LEFT(t.postal_code, 9) AS postal_code
-            , t.county_name
-            , t.region_name
+            , LEFT(t.county_name, 255) AS county_name
+            , LEFT(t.region_name, 255) AS region_name
             , DBShrpn.dbo.ufn_ret_job_or_pos_id(t.file_source, t.empl_id) AS job_or_pos_id
 
         FROM DBShrpn.dbo.ghr_employee_events t

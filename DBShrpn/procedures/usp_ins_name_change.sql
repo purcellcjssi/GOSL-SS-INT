@@ -349,6 +349,9 @@ BEGIN
 
 
 BYPASS_EMPLOYEE:
+            -- commit after every record
+            IF (@@TRANCOUNT > 0)
+                COMMIT TRAN
 
             FETCH crsrHR
             INTO  @aud_id
@@ -535,8 +538,8 @@ BYPASS_EMPLOYEE:
         DEALLOCATE crsrLog
 
         -- commit after every record
-        IF (@@TRANCOUNT > 0)
-            COMMIT TRAN
+        -- IF (@@TRANCOUNT > 0)
+        --     COMMIT TRAN
 
         ---------------------------------------------------------------------------
         -- Send notification of warning message U00011 -- Blank Line

@@ -41,6 +41,9 @@ GO
    version  date        developer   SCR         description
    -------  ----------  ---------   -----       ------------------------------------
    1.0.00   08/27/2025  CJP                     - Cloned from GOG version
+   1.0.01   05/15/2026  CJP                     - Added order by clause to cursor declaration
+                                                - Removed select of error variables in final catch block
+                                                - Added begin tran and commit logic
 
 ************************************************************************************/
 
@@ -89,6 +92,7 @@ BEGIN
 
     DECLARE @maxx                               char(06)
     DECLARE @msg_id                             char(10)
+    DECLARE @v_msg                              varchar(4000)
 
     DECLARE @i_stop_date_1                      char(12)
     -- DECLARE @i_emp_id                           char(15)
@@ -244,6 +248,9 @@ BEGIN
              , t.file_source
         FROM #ghr_employee_events_temp t
         WHERE (event_id = @v_EVENT_ID_PAY_ELE)
+        ORDER BY t.emp_id
+               , t.pay_element_id
+               , t.eff_date
 
         SET @v_step_position = 'Opening cursor crsrHR'
         OPEN crsrHR
@@ -269,6 +276,8 @@ BEGIN
                 SET @v_step_position = 'Begin crsrHR While Loop'
 
                 SET @w_fatal_error = 0
+
+                BEGIN TRAN
 
 
                 ---------------------------------------------------------------------------
@@ -502,6 +511,7 @@ BEGIN
                     FROM DBSCOMMON.dbo.message_master t
                     WHERE (msg_id = @msg_id)
 
+
                         -- Historical Message for reporting purpose
                         EXEC DBShrpn.dbo.usp_ins_ghr_historical_message
                             @p_msg_id             = @msg_id
@@ -515,6 +525,7 @@ BEGIN
                             , @p_activity_status    = @v_ACTIVITY_STATUS_BAD
                             , @p_activity_date      = @p_activity_date
                             , @p_audit_id           = @aud_id
+
 
                     SET @w_fatal_error = 1
 
@@ -963,10 +974,10 @@ BEGIN
             END TRY
             BEGIN CATCH
 
-                SELECT @ErrorNumber   = CAST(ERROR_NUMBER() AS varchar(10))
-                    , @ErrorMessage  = @v_step_position + ' - ' + ERROR_MESSAGE()
-                    , @ErrorSeverity = ERROR_SEVERITY()
-                    , @ErrorState    = ERROR_STATE()
+                -- SELECT @ErrorNumber   = CAST(ERROR_NUMBER() AS varchar(10))
+                --     , @ErrorMessage  = @v_step_position + ' - ' + ERROR_MESSAGE()
+                --     , @ErrorSeverity = ERROR_SEVERITY()
+                --     , @ErrorState    = ERROR_STATE()
 
                 IF (@@TRANCOUNT > 0)
                     ROLLBACK TRAN
@@ -991,6 +1002,10 @@ BEGIN
             END CATCH
 
 BYPASS_EMPLOYEE:
+            -- Commit records before next record in order to maintain log entries
+            IF (@@TRANCOUNT > 0)
+                COMMIT TRAN
+
 
             FETCH crsrHR
             INTO  @aud_id
@@ -1010,6 +1025,9 @@ BYPASS_EMPLOYEE:
         DEALLOCATE crsrHR
 
 
+        -- commit after every record
+        IF (@@TRANCOUNT > 0)
+            COMMIT TRAN
 
         ---------------------------------------------------------------------------
         -- Log warning message U00000 -- < NEW HIRE SECTION (1) >
