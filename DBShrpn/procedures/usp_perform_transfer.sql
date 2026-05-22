@@ -41,6 +41,9 @@ GO
    version  date        developer   SCR         description
    -------  ----------  ---------   -----       ------------------------------------
    1.0.00   08/27/2025  CJP                     - Cloned from GOG version
+   1.0.01   05/18/2026  CJP                     - Commit Error
+                                                    1) Updated employer id validation to skip record if invalid
+                                                        - default setting handled in usp_sel_employee_events
 
 ************************************************************************************/
 
@@ -616,15 +619,7 @@ BEGIN
                             WHERE empl_id = @empl_id
                             )
                 BEGIN
-                    IF EXISTS (
-                            SELECT 1
-                            FROM DBShrpn.dbo.employer
-                            WHERE empl_id = '0' + @empl_id
-                            )
-                        -- Add leading zero to employer id - lost on bulkcopy??? -- Do we need this for GOSL????
-                        SELECT @empl_id   = '0' + @empl_id
-                    ELSE
-                        BEGIN
+
 
                             SET @msg_id = 'U00039'
                             SET @v_step_position = 'Validation - ' + RTRIM(@msg_id)
@@ -653,7 +648,7 @@ BEGIN
 
                             SET @w_fatal_error = 1
 
-                        END
+
                 END
 
                 ---------------------------------------------------------------------------
@@ -662,104 +657,32 @@ BEGIN
                 IF (@cur_empl_id = @empl_id)
                     BEGIN
 
-                        -- If salary Change Record Exists in this run, bypass transfer record
-                        -- NEED TO UPDATE THIS LOGIC SINCE GOSL WILL NOT INTERFACE IN SALARY
-                        -- IF EXISTS (
-                        --            SELECT 1
-                        --            FROM #ghr_employee_events_temp
-                        --            WHERE emp_id   = @emp_id
-                        --              AND event_id = @v_EVENT_ID_SALARY_CHANGE
-                        --           )
-                        --     BEGIN
-                        --         UPDATE DBShrpn.dbo.ghr_employee_events_aud
-                        --         SET activity_status = @v_ACTIVITY_STATUS_WARNING
-                        --         WHERE emp_id = @emp_id
-                        --           AND activity_date = @p_activity_date
-                        --           AND event_id = @v_EVENT_ID_TRANSFER
-
-                        --         --CJP 8/6/2025 set skip flag instead of jumping to GOTO BYPASS_EMPLOYEE
-                        --         SET @w_fatal_error = 1
-                        --     END
-                        -- ELSE
-                            --BEGIN
-                                SET @msg_id = 'U00034'
-                                SET @v_step_position = 'Validation - ' + RTRIM(@msg_id)
-
-                                INSERT INTO #tbl_ghr_msg
-                                SELECT @msg_id As msg_id
-                                    , REPLACE(REPLACE(t.msg_text, '@1', @empl_id), '@2', @emp_id) AS msg_desc
-                                FROM DBSCOMMON.dbo.message_master t
-                                WHERE (t.msg_id = @msg_id)
-
-                                -- Historical Message for reporting purpose
-                                EXEC DBShrpn.dbo.usp_ins_ghr_historical_message
-                                    @p_msg_id             = @msg_id
-                                    , @p_event_id           = @v_EVENT_ID_TRANSFER
-                                    , @p_emp_id             = @emp_id
-                                    , @p_eff_date           = @eff_date
-                                    , @p_pay_element_id     = @v_EMPTY_SPACE
-                                    , @p_msg_p1             = @empl_id
-                                    , @p_msg_p2             = @cur_empl_id
-                                    , @p_msg_desc           = 'Cannot transfer an employee to the same employer.'
-                                    , @p_activity_status    = @v_ACTIVITY_STATUS_BAD
-                                    , @p_activity_date      = @p_activity_date
-                                    , @p_audit_id           = @aud_id
-
-                                SET @w_fatal_error = 1
-                            --END
-
-                    END
-
-/*
-                ---------------------------------------------------------------------------
-                -- Check to see if the employee is getting transfer to pensioner employer
-                ---------------------------------------------------------------------------
-                IF EXISTS(
-                        SELECT 1
-                        FROM DBShrpn.dbo.employer
-                        WHERE empl_id = @empl_id
-                            AND (name LIKE 'Pen%')
-                        )
-                    BEGIN
-                        SET @msg_id = 'U00044'
+                        SET @msg_id = 'U00034'
                         SET @v_step_position = 'Validation - ' + RTRIM(@msg_id)
 
-                        IF (@rehire_override = 0)
-                            BEGIN
+                        INSERT INTO #tbl_ghr_msg
+                        SELECT @msg_id As msg_id
+                            , REPLACE(REPLACE(t.msg_text, '@1', @empl_id), '@2', @emp_id) AS msg_desc
+                        FROM DBSCOMMON.dbo.message_master t
+                        WHERE (t.msg_id = @msg_id)
 
-                                INSERT INTO #tbl_ghr_msg
-                                SELECT @msg_id As msg_id
-                                    , REPLACE(t.msg_text, '@1', @emp_id) AS msg_desc
-                                FROM #tbl_msg_master t
-                                WHERE (msg_id = @msg_id)
+                        -- Historical Message for reporting purpose
+                        EXEC DBShrpn.dbo.usp_ins_ghr_historical_message
+                            @p_msg_id             = @msg_id
+                            , @p_event_id           = @v_EVENT_ID_TRANSFER
+                            , @p_emp_id             = @emp_id
+                            , @p_eff_date           = @eff_date
+                            , @p_pay_element_id     = @v_EMPTY_SPACE
+                            , @p_msg_p1             = @empl_id
+                            , @p_msg_p2             = @cur_empl_id
+                            , @p_msg_desc           = 'Cannot transfer an employee to the same employer.'
+                            , @p_activity_status    = @v_ACTIVITY_STATUS_BAD
+                            , @p_activity_date      = @p_activity_date
+                            , @p_audit_id           = @aud_id
 
-                                -- Historical Message for reporting purpose
-                                EXEC DBShrpn.dbo.usp_ins_ghr_historical_message
-                                    @p_msg_id             = @msg_id
-                                    , @p_event_id           = @v_EVENT_ID_TRANSFER
-                                    , @p_emp_id             = @emp_id
-                                    , @p_eff_date           = @eff_date
-                                    , @p_pay_element_id     = @v_EMPTY_SPACE
-                                    , @p_msg_p1             = @empl_id
-                                    , @p_msg_p2             = @v_EMPTY_SPACE
-                                    , @p_msg_desc           = 'Cannot transfer an employee to a pensioner employer'
-                                    , @p_activity_status    = @v_ACTIVITY_STATUS_BAD
-                                    , @p_activity_date      = @p_activity_date
-                                    , @p_audit_id           = @aud_id
+                        SET @w_fatal_error = 1
 
-                                SET @w_fatal_error = 1
-                            END
-                        ELSE
-                            BEGIN
-                                UPDATE DBShrpn.dbo.ghr_employee_events_aud
-                                SET activity_status = @v_ACTIVITY_STATUS_WARNING
-                                WHERE activity_date = @p_activity_date
-                                    AND emp_id = @emp_id
-                                    AND event_id = @v_EVENT_ID_TRANSFER
-                            END
-
-                END
-*/
+                    END
 
 
                 ---------------------------------------------------------------------------

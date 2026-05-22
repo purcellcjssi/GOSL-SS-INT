@@ -320,7 +320,7 @@ BEGIN
 
                         INSERT INTO #tbl_ghr_msg
                         SELECT @msg_id      AS msg_id
-                            , REPLACE(REPLACE(REPLACE(t.msg_text, '@1', @eff_date), '@2', @emp_id), '@3', @v_EVENT_ID_POSITION_TITLE) AS msg_desc
+                            , REPLACE(REPLACE(REPLACE(t.msg_text, '@1', CONVERT(char(8), @eff_date, 112)), '@2', @emp_id), '@3', @v_EVENT_ID_POSITION_TITLE) AS msg_desc
                         FROM DBSCOMMON.dbo.message_master t
                         WHERE (msg_id = @msg_id)
 

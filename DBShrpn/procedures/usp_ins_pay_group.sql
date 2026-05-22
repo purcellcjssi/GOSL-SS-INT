@@ -45,6 +45,9 @@ GO
    version  date        developer   SCR         description
    -------  ----------  ---------   -----       ------------------------------------
    1.0.00   08/27/2025  CJP                     - Cloned from GOG version
+   1.0.01   05/18/2026  CJP                     - Commit Error
+                                                    1) Fixed emp_employment update
+                                                        - Changed where clause to use current emp_ployment effective date instead of new effective date
 
 ************************************************************************************/
 
@@ -547,7 +550,7 @@ BEGIN
                 UPDATE DBShrpn.dbo.emp_employment
                 SET next_eff_date = @eff_date
                 WHERE (emp_id = @emp_id)
-                AND (eff_date = @eff_date)
+                AND (eff_date = @cur_eempl_eff_date)
 
 
                 -- Create new record

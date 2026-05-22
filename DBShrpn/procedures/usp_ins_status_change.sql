@@ -54,6 +54,9 @@ GO
    version  date        developer   SCR         description
    -------  ----------  ---------   -----       ------------------------------------
    1.0.00   08/27/2025  CJP                     - Cloned from GOG version
+   1.0.01   05/18/2026  CJP                     - Commit Error
+                                                    1) Updated employer id validation to skip record if invalid
+                                                        - default setting handled in usp_sel_employee_events
 
 ************************************************************************************/
 
@@ -445,6 +448,39 @@ BEGIN
                     END
 
 
+                -- Death Date
+                IF (@emp_death_date = @v_BAD_DATE_INDICATOR)
+                    BEGIN
+
+                        SET @msg_id = 'U00102'  -- New code
+                        SET @v_step_position = 'Validation Death Date - ' + RTRIM(@msg_id)
+
+
+                        INSERT INTO #tbl_ghr_msg
+                        SELECT @msg_id      AS msg_id
+                            , REPLACE(REPLACE(REPLACE(t.msg_text, '@1', CONVERT(char(8), @emp_death_date, 112)), '@2', @emp_id), '@3', @v_EVENT_ID_STATUS_CHANGE) AS msg_desc
+                        FROM DBSCOMMON.dbo.message_master t
+                        WHERE (t.msg_id = @msg_id)
+
+
+                        -- Historical Message for reporting purpose
+                        EXEC DBShrpn.dbo.usp_ins_ghr_historical_message
+                            @p_msg_id             = @msg_id
+                            , @p_event_id           = @v_EVENT_ID_STATUS_CHANGE
+                            , @p_emp_id             = @emp_id
+                            , @p_eff_date           = @eff_date
+                            , @p_pay_element_id     = @v_EMPTY_SPACE
+                            , @p_msg_p1             = 'Death Date could not be converted to a valid date.'
+                            , @p_msg_p2             = @v_EMPTY_SPACE
+                            , @p_msg_desc           = 'Invalid Death Date'
+                            , @p_activity_status    = @v_ACTIVITY_STATUS_BAD
+                            , @p_activity_date      = @p_activity_date
+                            , @p_audit_id           = @aud_id
+
+                        SET @w_fatal_error = 1
+
+                    END
+
 
                 ---------------------------------------------------------------------------
                 -- Check to see if the employee exists
@@ -535,7 +571,6 @@ BEGIN
                             , @p_audit_id           = @aud_id
 
 
-                        -- SET @empl_id = '99999'
                         SET @w_fatal_error = 1
 
 
@@ -845,6 +880,7 @@ BEGIN
                             BEGIN
 
 
+                                /*
                                 -- Debug
                                 SET @v_step_position = 'Rehire RH usp_upd_hmpl_rehire DEBUG'
 
@@ -870,6 +906,7 @@ BEGIN
                                 , (', @p_allow_pay_updates_ind    = ' + @v_single_quote + 'Y'                                           + @v_single_quote)
                                 , (', @p_old_chgstamp             = ' + @v_single_quote + CONVERT(varchar, @w_old_chgstamp, 0)          + @v_single_quote)
                                 , (' ');
+                                */
 
 
 
@@ -902,6 +939,7 @@ BEGIN
                                 ---------------------------------------------------------------------------
                                 SET @v_step_position = 'Rehire RH - Update Pay Elements Debug'
 
+                                /*
                                 INSERT DBShrpn.dbo.ghr_debug (text_line)
                                 VALUES('EXECUTE DBShrpn.dbo.usp_ins_hpcg_hepy')
                                 , ('@p_emp_id             = ' + @v_single_quote + RTRIM(@emp_id)                        + @v_single_quote)
@@ -910,6 +948,7 @@ BEGIN
                                 , (', @p_new_pecg_id      = ' + @v_single_quote + RTRIM(@pay_element_ctrl_grp_id)       + @v_single_quote)
                                 , (', @p_as_of_date       = ' + @v_single_quote + CONVERT(char(8), @eff_date, 112)    + @v_single_quote)
                                 , (' ');
+                                */
 
 
                                 -- Builds pay elements for rehired associate

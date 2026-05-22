@@ -41,9 +41,12 @@ GO
    version  date        developer   SCR         description
    -------  ----------  ---------   -----       ------------------------------------
    1.0.00   08/27/2025  CJP                     - Cloned from GOG version
-   1.0.01   05/15/2026  CJP                     - Added order by clause to cursor declaration
-                                                - Removed select of error variables in final catch block
-                                                - Added begin tran and commit logic
+   1.0.01   05/15/2026  CJP                     - Commit Error
+                                                    1) Added order by clause to cursor declaration
+                                                    2) Removed select of error variables in final catch block
+                                                    3) Added begin tran and commit logic
+                                                    4) Updated employer id validation to skip record if invalid
+                                                        - default setting handled in usp_sel_employee_events
 
 ************************************************************************************/
 
@@ -473,7 +476,7 @@ BEGIN
 
                     INSERT INTO #tbl_ghr_msg
                     SELECT @msg_id AS msg_id
-                        , REPLACE(t.msg_text, '@1', RTRIM(@empl_id   )) AS msg_desc
+                        , REPLACE(t.msg_text, '@1', RTRIM(@empl_id)) AS msg_desc
                     FROM DBSCOMMON.dbo.message_master t
                     WHERE (msg_id = @msg_id)
 
