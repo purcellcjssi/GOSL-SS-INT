@@ -13,7 +13,7 @@ VALUES
 , (N'U00002', 1, 0, N'< ENCOUNTERED THE FOLLOWING ERRORS: >', N' ', N' ', 0, N'', 0, 0)
 , (N'U00003', 1, 0, N'Total number of employees that already exist: @1', N' ', N' ', 0, N'', 0, 0)
 , (N'U00005', 1, 0, N'Employer (@1) does not exist for employee: @2 - bypassing record.', N'Y', N' ', 0, N'', 0, 0)
-, (N'U00006', 1, 0, N'Employee, @1, National ID already exists - defaulting to 99999. National ID ID is: @2.', N'Y', N' ', 0, N'', 0, 0)
+, (N'U00006', 1, 0, N'Employee''s (@1) National ID (@2) already exists - defaulting to ''99999''.', N'Y', N' ', 0, N'', 0, 0)
 , (N'U00007', 1, 0, N'National ID was blank for employee, @1 - defaulting to ''99999''.', N'Y', N' ', 0, N'', 0, 0)
 , (N'U00008', 1, 0, N'Unit name (@1) was missing for employee, @2 - defaulting to 999999.', N'Y', N' ', 0, N'', 0, 0)
 , (N'U00009', 1, 0, N'< BEGINNING OF ERROR MESSAGES: >', N' ', N' ', 0, N'', 0, 0)
@@ -97,6 +97,9 @@ VALUES
 , (N'U00125', 1, 0, N'Invalid annual rate value, for employee, @1.', N'', N'', 0, N'', 0, 0)
 
 , (N'U00126', 1, 0, N'New hire update failed for employee, @1.', N'', N'', 0, N'', 0, 0)
+
+, (N'U00127', 1, 0, N'New employer, @1, does not have an associated tax entity. Employee @2 cannot be transferred.', N'', N'', 0, N'', 0, 0)
+
 GO
 
 select *

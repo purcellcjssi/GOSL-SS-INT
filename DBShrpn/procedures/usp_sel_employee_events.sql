@@ -156,7 +156,7 @@ BEGIN
     , tax_flag                              char(1)             NULL    -- individual_personal.user_ind_2
     , nic_flag                              char(1)             NULL    -- individual_personal.user_ind_1
     , tax_ceiling_amt                       char(15)            NULL    -- employee.user_monetary_amt_1
-    , labor_grp_code                        char(50)            NULL    -- DBShrpn..emp_employment.labor_grp_code   char(5)
+    , labor_grp_code                        char(05)            NULL    -- DBShrpn..emp_employment.labor_grp_code   char(5)
     , file_source                           char(50)            NULL    -- 'SS VENUS' or 'SS GANYMEDE'
     , annual_hrs_per_fte                    money               NULL    --varchar(255)        NULL
     , annual_rate                           money               NULL    --varchar(255)        NULL
@@ -211,6 +211,61 @@ BEGIN
         SET @v_step_position = 'Insert INTO #ghr_employee_events_temp'
 
         INSERT INTO #ghr_employee_events_temp
+        (
+          event_id                     
+        , emp_id                       
+        , eff_date                     
+        , first_name                   
+        , first_middle_name            
+        , last_name                    
+        , empl_id                      
+        , national_id_type_code        
+        , national_id                  
+        , organization_group_id        
+        , organization_chart_name      
+        , organization_unit_name       
+        , emp_status_classn_code       
+        , position_title               
+        , employment_type_code         
+        , annual_salary_amt            
+        , begin_date                   
+        , end_date                     
+        , pay_status_code              
+        , pay_group_id                 
+        , pay_element_ctrl_grp_id      
+        , time_reporting_meth_code     
+        , employment_info_chg_reason_cd
+        , emp_location_code            
+        , emp_status_code              
+        , reason_code                  
+        , emp_expected_return_date     
+        , pay_through_date             
+        , emp_death_date               
+        , consider_for_rehire_ind      
+        , pay_element_id               
+        , emp_calculation              
+        , tax_flag                     
+        , nic_flag                     
+        , tax_ceiling_amt              
+        , labor_grp_code               
+        , file_source                  
+        , annual_hrs_per_fte           
+        , annual_rate                  
+        , birth_date                   
+        , gender                       
+        , addr_fmt_code                
+        , country_code                 
+        , addr_line_1                  
+        , addr_line_2                  
+        , addr_line_3                  
+        , addr_line_4                  
+        , city_name                    
+        , state_prov                   
+        , postal_code                  
+        , county_name                  
+        , region_name                  
+        , job_or_pos_id                
+        )
         SELECT LEFT(t.event_id, 2) AS event_id
             , LEFT(t.emp_id, 15) AS emp_id
             , CASE
@@ -220,11 +275,7 @@ BEGIN
             , LEFT(t.first_name, 25) AS first_name
             , LEFT(t.first_middle_name, 25) AS first_middle_name
             , LEFT(t.last_name, 25) AS last_name
-
             , UPPER(LEFT(t.empl_id, 10)) AS empl_id
-
-
-
             , LEFT(t.national_id_type_code, 5) AS national_id_type_code
             , LEFT(t.national_id, 20) AS national_id
             , COALESCE(TRY_CONVERT(int, t.organization_group_id), 0) AS organization_group_id
@@ -249,8 +300,11 @@ BEGIN
             , LEFT(t.employment_info_chg_reason_cd, 5) AS employment_info_chg_reason_cd
             , LEFT(t.emp_location_code, 10) AS emp_location_code
             , LEFT(t.emp_status_code, 2) AS emp_status_code
-            , LEFT(t.reason_code, 5) AS reason_code
-            , t.emp_expected_return_date
+            , LEFT(t.reason_code, 5) AS reason_code            
+            , CASE
+                WHEN (LEN(RTRIM(t.emp_expected_return_date)) = 0) THEN @v_END_OF_TIME_DATE
+                ELSE COALESCE(TRY_CONVERT(datetime, t.emp_expected_return_date), @v_BAD_DATE_INDICATOR)
+              END AS emp_expected_return_date
             , CASE
                 WHEN (LEN(RTRIM(t.pay_through_date)) = 0) THEN @v_END_OF_TIME_DATE
                 ELSE COALESCE(TRY_CONVERT(datetime, t.pay_through_date), @v_BAD_DATE_INDICATOR)
@@ -265,7 +319,7 @@ BEGIN
             , LEFT(t.tax_flag, 1) AS tax_flag
             , LEFT(t.nic_flag, 1) AS nic_flag
             , COALESCE(TRY_CONVERT(money, t.tax_ceiling_amt), 0.00) AS tax_ceiling_amt
-            , LEFT(t.labor_grp_code, 50) AS labor_grp_code
+            , LEFT(t.labor_grp_code, 5) AS labor_grp_code
             , LEFT(t.file_source, 50) AS file_source
             , COALESCE(TRY_CONVERT(money, t.annual_hrs_per_fte), 0.00) AS annual_hrs_per_fte
             , COALESCE(TRY_CONVERT(money, t.annual_rate), 0.00) AS annual_rate
@@ -286,8 +340,6 @@ BEGIN
             , LEFT(t.county_name, 255) AS county_name
             , LEFT(t.region_name, 255) AS region_name
             , DBShrpn.dbo.ufn_ret_job_or_pos_id(t.file_source, t.empl_id) AS job_or_pos_id
-            , 'Y' AS pass_key_fld_val_flag     -- Flag to indicate whether key fields have values that would allow record to be processed in downstream procedures. Default to 'Y' and update to 'N' if any key fields are missing.
-
         FROM DBShrpn.dbo.ghr_employee_events t
         --WHERE (t.event_id <> @v_EVENT_ID_SALARY_CHANGE)  -- Exclude Salary Changes
 

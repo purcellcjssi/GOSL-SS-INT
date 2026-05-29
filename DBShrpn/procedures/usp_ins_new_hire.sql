@@ -283,7 +283,7 @@ BEGIN
              , t.organization_chart_name
              , t.organization_unit_name
              , t.emp_status_classn_code
-             , LEFT(t.position_title, 50) AS position_title
+             , t.position_title
              , t.employment_type_code
              , t.annual_salary_amt
              , t.pay_group_id
@@ -484,13 +484,53 @@ BEGIN
                             , @p_pay_element_id     = @v_EMPTY_SPACE
                             , @p_msg_p1             = @v_EMPTY_SPACE
                             , @p_msg_p2             = @v_EMPTY_SPACE
-                            , @p_msg_desc           = 'National ID is blank - defaulting to '''''
+                            , @p_msg_desc           = 'National ID is blank - defaulting to ''99999'''
                             , @p_activity_status    = @v_ACTIVITY_STATUS_WARNING
                             , @p_activity_date      = @p_activity_date
                             , @p_audit_id           = @aud_id
 
                         SET @national_id = '99999'
                     END
+
+
+                ---------------------------------------------------------------------------
+                -- Check to see if National ID is already In Use
+                ---------------------------------------------------------------------------
+                IF EXISTS (
+                            SELECT 1
+                            FROM DBShrpn.dbo.individual_personal
+                            WHERE (national_id_1 = @national_id)
+                        )
+                    BEGIN
+
+                        SET @msg_id = 'U00006'
+                        SET @v_step_position = 'Begin ' + RTRIM(@msg_id)
+
+                        INSERT INTO #tbl_ghr_msg
+                        SELECT @msg_id     As msg_id
+                            , REPLACE(REPLACE(t.msg_text, '@1', @national_id), '@2', @emp_id) AS msg_desc
+                        FROM DBSCOMMON.dbo.message_master t     --#tbl_msg_master t
+                        WHERE (t.msg_id = @msg_id)
+
+                        -- Historical Message for reporting purpose
+                        EXEC DBShrpn.dbo.usp_ins_ghr_historical_message
+                            @p_msg_id             = @msg_id
+                            , @p_event_id           = @v_EVENT_ID_NEW_HIRE
+                            , @p_emp_id             = @emp_id
+                            , @p_eff_date           = @eff_date
+                            , @p_pay_element_id     = @v_EMPTY_SPACE
+                            , @p_msg_p1             = @v_EMPTY_SPACE
+                            , @p_msg_p2             = @v_EMPTY_SPACE
+                            , @p_msg_desc           = 'National ID already in use - defaulting to ''99999'''
+                            , @p_activity_status    = @v_ACTIVITY_STATUS_WARNING
+                            , @p_activity_date      = @p_activity_date
+                            , @p_audit_id           = @aud_id
+
+                        SET @national_id = '99999'
+
+                    END
+
+
 
 
                 ---------------------------------------------------------------------------

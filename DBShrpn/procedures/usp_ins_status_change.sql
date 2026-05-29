@@ -57,6 +57,7 @@ GO
    1.0.01   05/18/2026  CJP                     - Commit Error
                                                     1) Updated employer id validation to skip record if invalid
                                                         - default setting handled in usp_sel_employee_events
+                                                    2) Removed unused import fields
 
 ************************************************************************************/
 
@@ -151,31 +152,31 @@ BEGIN
     DECLARE @aud_id                                 int             = 0
     DECLARE @emp_id                                 char(15)        = @v_EMPTY_SPACE
     DECLARE @eff_date                               datetime
-    DECLARE @first_name                      	    char(25)
-    DECLARE @first_middle_name               	    char(25)
-    DECLARE @last_name                       	    char(30)
+    -- DECLARE @first_name                      	    char(25)
+    -- DECLARE @first_middle_name               	    char(25)
+    -- DECLARE @last_name                       	    char(30)
     DECLARE @empl_id                         	    char(10)
     DECLARE @national_id_type_code           	    char(05)
     DECLARE @national_id                     	    char(20)
     DECLARE @organization_group_id           	    int
-    DECLARE @organization_chart_name         	    varchar(64)
-    DECLARE @organization_unit_name          	    varchar(240)
+    -- DECLARE @organization_chart_name         	    varchar(64)
+    -- DECLARE @organization_unit_name          	    varchar(240)
     DECLARE @emp_status_classn_code          	    char(02)
     DECLARE @position_title                  	    char(50)        -- DBShrpn..emp_assignment.user_text
-    DECLARE @employment_type_code            	    varchar(70)     -- increased size to 70 from 5
+    -- DECLARE @employment_type_code            	    varchar(70)     -- increased size to 70 from 5
     DECLARE @pay_rate               	            money
-    DECLARE @begin_date                      	    datetime
-    DECLARE @end_date                        	    datetime
+    -- DECLARE @begin_date                      	    datetime
+    -- DECLARE @end_date                        	    datetime
     DECLARE @pay_status_code                 	    char(01)
     DECLARE @pay_group_id                    	    char(10)
     DECLARE @pay_element_ctrl_grp_id         	    char(10)
     DECLARE @time_reporting_meth_code        	    char(01)
-    DECLARE @employment_info_chg_reason_cd   	    char(05)
-    DECLARE @emp_location_code               	    char(10)
+    -- DECLARE @employment_info_chg_reason_cd   	    char(05)
+    -- DECLARE @emp_location_code               	    char(10)
     DECLARE @emp_status_code                 	    char(02)
     DECLARE @reason_code                     	    char(02)
-    DECLARE @emp_expected_return_date        	    char(10)
-    DECLARE @pay_through_date                	    datetime
+    -- DECLARE @emp_expected_return_date        	    char(10)
+    -- DECLARE @pay_through_date                	    datetime
     DECLARE @emp_death_date                  	    datetime
     DECLARE @consider_for_rehire_ind         	    char(01)
     --DECLARE @pay_element_id                  	    char(10)
@@ -238,41 +239,24 @@ BEGIN
         SELECT t.aud_id
              , t.emp_id
              , t.eff_date
-             , t.first_name
-             , t.first_middle_name
-             , t.last_name
              , t.empl_id
-             , t.national_id_type_code
-             , t.national_id
              , t.organization_group_id
-             , @v_EMPTY_SPACE       -- t.organization_chart_name
-             , @v_EMPTY_SPACE       -- t.organization_unit_name
              , t.emp_status_classn_code
              , t.position_title
-             , t.employment_type_code
              , t.annual_salary_amt
-             , t.begin_date
-             , t.end_date
              , t.pay_status_code
              , t.pay_group_id
              , t.pay_element_ctrl_grp_id
              , t.time_reporting_meth_code
-             , t.employment_info_chg_reason_cd
-             , t.emp_location_code
              , t.emp_status_code
              , t.reason_code
-             , t.emp_expected_return_date
-             , t.pay_through_date
              , t.emp_death_date
              , t.consider_for_rehire_ind
-             --, t.pay_element_id
-             --, t.emp_calculation
              , t.tax_flag
              , t.nic_flag
              , t.tax_ceiling_amt
              , t.labor_grp_code
              , t.file_source
-
              , t.annual_hrs_per_fte
              , t.annual_rate
              , t.addr_fmt_code
@@ -298,31 +282,17 @@ BEGIN
         INTO  @aud_id
             , @emp_id
             , @eff_date
-            , @first_name
-            , @first_middle_name
-            , @last_name
             , @empl_id
-            , @national_id_type_code
-            , @national_id
             , @organization_group_id
-            , @organization_chart_name
-            , @organization_unit_name
             , @emp_status_classn_code
             , @position_title
-            , @employment_type_code
             , @pay_rate
-            , @begin_date
-            , @end_date
             , @pay_status_code
             , @pay_group_id
             , @pay_element_ctrl_grp_id
             , @time_reporting_meth_code
-            , @employment_info_chg_reason_cd
-            , @emp_location_code
             , @emp_status_code
             , @reason_code
-            , @emp_expected_return_date
-            , @pay_through_date
             , @emp_death_date
             , @consider_for_rehire_ind
             , @tax_flag
@@ -343,7 +313,6 @@ BEGIN
             , @postal_code
             , @county_name
             , @region_name
-
             , @w_job_or_pos_id
 
 
@@ -1456,55 +1425,40 @@ BYPASS_EMPLOYEE:
 
             FETCH crsrHR
             INTO  @aud_id
-                , @emp_id
-                , @eff_date
-                , @first_name
-                , @first_middle_name
-                , @last_name
-                , @empl_id
-                , @national_id_type_code
-                , @national_id
-                , @organization_group_id
-                , @organization_chart_name
-                , @organization_unit_name
-                , @emp_status_classn_code
-                , @position_title
-                , @employment_type_code
-                , @pay_rate
-                , @begin_date
-                , @end_date
-                , @pay_status_code
-                , @pay_group_id
-                , @pay_element_ctrl_grp_id
-                , @time_reporting_meth_code
-                , @employment_info_chg_reason_cd
-                , @emp_location_code
-                , @emp_status_code
-                , @reason_code
-                , @emp_expected_return_date
-                , @pay_through_date
-                , @emp_death_date
-                , @consider_for_rehire_ind
-                , @tax_flag
-                , @nic_flag
-                , @tax_ceiling_amt
-                , @labor_grp_code
-                , @file_source
-                , @annual_hrs_per_fte
-                , @annual_rate
-                , @addr_fmt_code
-                , @country_code
-                , @addr_line_1
-                , @addr_line_2
-                , @addr_line_3
-                , @addr_line_4
-                , @city_name
-                , @state_prov
-                , @postal_code
-                , @county_name
-                , @region_name
-
-                , @w_job_or_pos_id
+            , @emp_id
+            , @eff_date
+            , @empl_id
+            , @organization_group_id
+            , @emp_status_classn_code
+            , @position_title
+            , @pay_rate
+            , @pay_status_code
+            , @pay_group_id
+            , @pay_element_ctrl_grp_id
+            , @time_reporting_meth_code
+            , @emp_status_code
+            , @reason_code
+            , @emp_death_date
+            , @consider_for_rehire_ind
+            , @tax_flag
+            , @nic_flag
+            , @tax_ceiling_amt
+            , @labor_grp_code
+            , @file_source
+            , @annual_hrs_per_fte
+            , @annual_rate
+            , @addr_fmt_code                -- Address is included for re-hires
+            , @country_code
+            , @addr_line_1
+            , @addr_line_2
+            , @addr_line_3
+            , @addr_line_4
+            , @city_name
+            , @state_prov
+            , @postal_code
+            , @county_name
+            , @region_name
+            , @w_job_or_pos_id
 
         END  -- While Loop
 

@@ -686,6 +686,53 @@ BEGIN
 
 
                 ---------------------------------------------------------------------------
+                -- Lookup new employer/tax entity details
+                ---------------------------------------------------------------------------
+                SET @v_step_position = 'Lookup New Employer/Tax Entity'
+
+                SELECT @new_taxing_country_code = empl.taxing_country_code
+                    , @new_curr_code           = empl.curr_code
+                    , @new_tax_entity          = tax_entity_id
+                FROM DBShrpn.dbo.employer empl
+                JOIN DBShrpn.dbo.empl_tax_entity ete ON
+                    (empl.empl_id = ete.empl_id)
+                WHERE (empl.empl_id = @empl_id)
+
+                IF (@@ROWCOUNT = 0)
+                BEGIN
+
+                    SET @msg_id = 'U00127'
+                    SET @v_step_position = 'Validation - ' + RTRIM(@msg_id)
+
+
+                    INSERT INTO #tbl_ghr_msg
+                    SELECT @msg_id AS msg_id
+                        , REPLACE(REPLACE(t.msg_text, '@1', RTRIM(@empl_id)), '@2', RTRIM(@emp_id)) AS msg_desc
+                    FROM DBSCOMMON.dbo.message_master t
+                    WHERE (t.msg_id = @msg_id)
+
+                    SET @w_msg_text = 'New employer, ' + @empl_id + ', does not have an associated tax entity. Employee cannot be transferred.'
+
+                    -- Historical Message for reporting purpose
+                    EXEC DBShrpn.dbo.usp_ins_ghr_historical_message
+                        @p_msg_id             = @msg_id
+                        , @p_event_id           = @v_EVENT_ID_TRANSFER
+                        , @p_emp_id             = @emp_id
+                        , @p_eff_date           = @eff_date
+                        , @p_pay_element_id     = @v_EMPTY_SPACE
+                        , @p_msg_p1             = @v_EMPTY_SPACE
+                        , @p_msg_p2             = @v_EMPTY_SPACE
+                        , @p_msg_desc           = @w_msg_text
+                        , @p_activity_status    = @v_ACTIVITY_STATUS_BAD
+                        , @p_activity_date      = @p_activity_date
+                        , @p_audit_id           = @aud_id
+
+                    SET @w_fatal_error = 1
+
+                END
+
+
+                ---------------------------------------------------------------------------
                 -- Check to see if the employee current status is terminated.
                 ---------------------------------------------------------------------------
                 SET @msg_id = 'U00045'
@@ -751,18 +798,6 @@ BEGIN
 
 
 
-                ---------------------------------------------------------------------------
-                -- Lookup new employer/tax entity details
-                ---------------------------------------------------------------------------
-                SET @v_step_position = 'Lookup New Employer/Tax Entity'
-
-                SELECT @new_taxing_country_code = empl.taxing_country_code
-                    , @new_curr_code           = empl.curr_code
-                    , @new_tax_entity          = tax_entity_id
-                FROM DBShrpn.dbo.employer empl
-                JOIN DBShrpn.dbo.empl_tax_entity ete ON
-                    (empl.empl_id = ete.empl_id)
-                WHERE (empl.empl_id = @empl_id)
 
 
                 ---------------------------------------------------------------------------
