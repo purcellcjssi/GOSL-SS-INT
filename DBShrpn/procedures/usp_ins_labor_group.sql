@@ -49,7 +49,7 @@ GO
    1.0.01   05/18/2026  CJP                     - Commit Error
                                                     1) Fixed emp_employment update
                                                         - Changed where clause to use current emp_ployment effective date instead of new effective date
-
+                                                    2) Added SmartStream audit table inserts for labor group change
 ************************************************************************************/
 
 CREATE PROCEDURE dbo.usp_ins_labor_group
@@ -386,6 +386,10 @@ BEGIN
                     , @cur_eempl_eff_date           = eempl.eff_date
                     , @cur_labor_grp_code           = eempl.labor_grp_code
                     , @cur_stat_emp_status_code     = stat.emp_status_code
+                    -- AUDIT
+                    -- need transfer date - can it be end of time when not transfering associate?
+                    -- need pay through date - end of time?
+
                 FROM DBShrpn.dbo.employee emp
                 JOIN DBShrpn.dbo.uvu_emp_employment_most_rec eempl ON
                     (emp.emp_id = eempl.emp_id)
@@ -588,6 +592,47 @@ BEGIN
                         WHERE (emp_id = @emp_id)
                         AND (eff_date = @eff_date)
 
+
+                        ---------------------------------------------------------------------------
+                        -- Add record to employment audit table
+                        ---------------------------------------------------------------------------
+                        INSERT INTO work_emp_employment_aud
+                            (
+                              user_id
+                            , activity_action_code
+                            , action_date
+                            , emp_id
+                            , eff_date
+                            , next_eff_date
+                            , prior_eff_date
+                            , new_eff_date
+                            , new_empl_id
+                            , new_tax_entity_id
+                            , xfer_date
+                            , pay_through_date
+                            )
+                        VALUES
+                            (
+                              @p_user_id                    -- user_id
+                            , 'CHGEMPEQ'                    -- activity_action_code
+                            , @p_activity_date              -- action_date
+                            , @emp_id                       -- emp_id
+                            , @eff_date                     -- eff_date
+                            , @v_END_OF_TIME_DATE           -- next_eff_date
+                            , @v_END_OF_TIME_DATE           -- prior_eff_date
+                            , @v_END_OF_TIME_DATE           -- new_eff_date
+                            , @v_EMPTY_SPACE                -- new_empl_id
+                            , @v_EMPTY_SPACE                -- new_tax_entity_id
+                            , @v_END_OF_TIME_DATE           -- xfer_date
+                            , @v_END_OF_TIME_DATE           -- pay_through_date
+                            )
+
+                        DELETE work_emp_employment_aud
+                        WHERE (user_id              = @p_user_id)
+                          AND (activity_action_code = 'CHGEMPEQ')
+                          AND (emp_id               = @emp_id)
+
+
                     END
 
                 ELSE -- Create new record
@@ -778,22 +823,45 @@ BEGIN
 
 
 
-                        /*  DO WE NEED TO CREATE AN AUDIT RECORD?????
-                            -- WE'LL NEED AN ACTIVITY ACTION CODE
+                        ---------------------------------------------------------------------------
+                        -- Add record to employment audit table
+                        ---------------------------------------------------------------------------
+                        INSERT INTO work_emp_employment_aud
+                            (
+                              user_id
+                            , activity_action_code
+                            , action_date
+                            , emp_id
+                            , eff_date
+                            , next_eff_date
+                            , prior_eff_date
+                            , new_eff_date
+                            , new_empl_id
+                            , new_tax_entity_id
+                            , xfer_date
+                            , pay_through_date
+                            )
+                        VALUES
+                            (
+                              @p_user_id                -- user_id
+                            , 'CHGEMPNE'                -- activity_action_code
+                            , @p_activity_date          -- action_date
+                            , @emp_id                   -- emp_id
+                            , @cur_eempl_eff_date       -- eff_date
+                            , @v_END_OF_TIME_DATE       -- next_eff_date
+                            , @v_END_OF_TIME_DATE       -- prior_eff_date
+                            , @eff_date                 -- new_eff_date
+                            , @v_EMPTY_SPACE            -- new_empl_id
+                            , @v_EMPTY_SPACE            -- new_tax_entity_id
+                            , @v_END_OF_TIME_DATE       -- xfer_date
+                            , @v_END_OF_TIME_DATE       -- pay_through_date
+                            )
 
-                                INSERT INTO work_emp_employment_aud
-                                    (user_id, activity_action_code, action_date, emp_id, eff_date,
-                                    next_eff_date, prior_eff_date, new_eff_date, new_empl_id,
-                                    new_tax_entity_id, xfer_date, pay_through_date)
-                                VALUES
-                                    (@W_ACTION_USER, 'ERTRANSFER', @W_ACTION_DATETIME, @emp_id,
-                                    @p_eff_date, @v_EMPTY_SPACE, @v_EMPTY_SPACE, @p_transfer_date, @v_EMPTY_SPACE, @v_EMPTY_SPACE, @v_EMPTY_SPACE, @v_EMPTY_SPACE)
+                        DELETE work_emp_employment_aud
+                        WHERE (user_id              = @p_user_id)
+                          AND (activity_action_code = 'CHGEMPNE')
+                          AND (emp_id            = @emp_id)
 
-                                DELETE work_emp_employment_aud
-                                WHERE user_id = @W_ACTION_USER
-                                AND activity_action_code = 'ERTRANSFER'
-                                AND emp_id = @emp_id
-                        */
                     END
 
 

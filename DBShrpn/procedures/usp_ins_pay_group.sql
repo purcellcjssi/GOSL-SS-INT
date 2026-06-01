@@ -48,6 +48,7 @@ GO
    1.0.01   05/18/2026  CJP                     - Commit Error
                                                     1) Fixed emp_employment update
                                                         - Changed where clause to use current emp_ployment effective date instead of new effective date
+                                                    2) Added SmartStream audit table inserts for pay group change
 
 ************************************************************************************/
 
@@ -68,6 +69,7 @@ BEGIN
 
     DECLARE @v_END_OF_TIME_DATE             datetime            = '29991231'
     DECLARE @v_BAD_DATE_INDICATOR           datetime            = '99991231'    -- value used to populate datetime column with value from HCM that is not a valid date after conversion
+    DECLARE @v_EMPTY_SPACE                  char(01)            = 'x'
 
     DECLARE @v_EVENT_ID_NEW_HIRE            char(2)             = '01'
     DECLARE @v_EVENT_ID_SALARY_CHANGE       char(2)             = '02'
@@ -111,7 +113,7 @@ BEGIN
 
     -- This section declares the interface values from Global HR
     DECLARE @aud_id                         int             = 0
-    DECLARE @emp_id                         char(15)        = ''
+    DECLARE @emp_id                         char(15)        = 'x'
     DECLARE @eff_date                       datetime
     DECLARE @empl_id                        char(10)
     DECLARE @pay_group_id                   char(10)
@@ -289,9 +291,9 @@ BEGIN
                         , @p_event_id           = @v_EVENT_ID_PAY_GROUP
                         , @p_emp_id             = @emp_id
                         , @p_eff_date           = @eff_date
-                        , @p_pay_element_id     = ''
-                        , @p_msg_p1             = ''
-                        , @p_msg_p2             = ''
+                        , @p_pay_element_id     = @v_EMPTY_SPACE
+                        , @p_msg_p1             = @v_EMPTY_SPACE
+                        , @p_msg_p2             = @v_EMPTY_SPACE
                         , @p_msg_desc           = 'Bypassing pay group record since pay group update has either occurred in new hire, transfer, or rehire status change event in this extract.'
                         , @p_activity_status    = @v_ACTIVITY_STATUS_WARNING
                         , @p_activity_date      = @p_activity_date
@@ -307,7 +309,7 @@ BEGIN
                 ---------------------------------------------------------------------------
                 -- Validate Effective Date
                 ---------------------------------------------------------------------------
-                -- Invalid date value from HCM, ''@1'', for employee, @2, and event id, @3.
+                -- Invalid date value from HCM, '@1', for employee, @2, and event id, @3.
 
                 -- Effective Date
                 IF (@eff_date = @v_BAD_DATE_INDICATOR)
@@ -328,9 +330,9 @@ BEGIN
                             , @p_event_id           = @v_EVENT_ID_PAY_GROUP
                             , @p_emp_id             = @emp_id
                             , @p_eff_date           = @eff_date
-                            , @p_pay_element_id     = ''
-                            , @p_msg_p1             = ''
-                            , @p_msg_p2             = ''
+                            , @p_pay_element_id     = @v_EMPTY_SPACE
+                            , @p_msg_p1             = @v_EMPTY_SPACE
+                            , @p_msg_p2             = @v_EMPTY_SPACE
                             , @p_msg_desc           = 'Invalid Effective Date'
                             , @p_activity_status    = @v_ACTIVITY_STATUS_BAD
                             , @p_activity_date      = @p_activity_date
@@ -375,9 +377,9 @@ BEGIN
                             , @p_event_id           = @v_EVENT_ID_PAY_GROUP
                             , @p_emp_id             = @emp_id
                             , @p_eff_date           = @eff_date
-                            , @p_pay_element_id     = ''
-                            , @p_msg_p1             = ''
-                            , @p_msg_p2             = ''
+                            , @p_pay_element_id     = @v_EMPTY_SPACE
+                            , @p_msg_p1             = @v_EMPTY_SPACE
+                            , @p_msg_p2             = @v_EMPTY_SPACE
                             , @p_msg_desc           = 'Invalid employee id.'
                             , @p_activity_status    = @v_ACTIVITY_STATUS_BAD
                             , @p_activity_date      = @p_activity_date
@@ -410,9 +412,9 @@ BEGIN
                             , @p_event_id           = @v_EVENT_ID_POSITION_TITLE
                             , @p_emp_id             = @emp_id
                             , @p_eff_date           = @eff_date
-                            , @p_pay_element_id     = ''
+                            , @p_pay_element_id     = @v_EMPTY_SPACE
                             , @p_msg_p1             = @pay_group_id
-                            , @p_msg_p2             = ''
+                            , @p_msg_p2             = @v_EMPTY_SPACE
                             , @p_msg_desc           = 'Employee is terminated in SmartStream - bypassing record.'
                             , @p_activity_status    = @v_ACTIVITY_STATUS_BAD
                             , @p_activity_date      = @p_activity_date
@@ -446,7 +448,7 @@ BEGIN
                             , @p_event_id           = @v_EVENT_ID_PAY_GROUP
                             , @p_emp_id             = @emp_id
                             , @p_eff_date           = @eff_date
-                            , @p_pay_element_id     = ''
+                            , @p_pay_element_id     = @v_EMPTY_SPACE
                             , @p_msg_p1             = @pay_group_id
                             , @p_msg_p2             = @cur_pay_group_id
                             , @p_msg_desc           = 'New pay group is same as current pay group - bypassing record.'
@@ -485,7 +487,7 @@ BEGIN
                             , @p_event_id           = @v_EVENT_ID_PAY_GROUP
                             , @p_emp_id             = @emp_id
                             , @p_eff_date           = @eff_date
-                            , @p_pay_element_id     = ''
+                            , @p_pay_element_id     = @v_EMPTY_SPACE
                             , @p_msg_p1             = @emp_id
                             , @p_msg_p2             = @pay_group_id
                             , @p_msg_desc           = 'Invalid pay group id.'
@@ -524,7 +526,7 @@ BEGIN
                             , @p_event_id           = @v_EVENT_ID_LABOR_GROUP
                             , @p_emp_id             = @emp_id
                             , @p_eff_date           = @eff_date
-                            , @p_pay_element_id     = ''
+                            , @p_pay_element_id     = @v_EMPTY_SPACE
                             , @p_msg_p1             = @w_msg_text_2
                             , @p_msg_p2             = @pay_group_id
                             , @p_msg_desc           = 'New effective date must be greater than current employee employment effective date.'
@@ -725,22 +727,45 @@ BEGIN
 
 
 
-                    /*  DO WE NEED TO CREATE AN AUDIT RECORD?????
-                        -- WE'LL NEED AN ACTIVITY ACTION CODE
+                        ---------------------------------------------------------------------------
+                        -- Add record to employment audit table
+                        ---------------------------------------------------------------------------
+                        INSERT INTO work_emp_employment_aud
+                            (
+                              user_id
+                            , activity_action_code
+                            , action_date
+                            , emp_id
+                            , eff_date
+                            , next_eff_date
+                            , prior_eff_date
+                            , new_eff_date
+                            , new_empl_id
+                            , new_tax_entity_id
+                            , xfer_date
+                            , pay_through_date
+                            )
+                        VALUES
+                            (
+                              @p_user_id                -- user_id
+                            , 'CHGEMPNE'                    -- activity_action_code
+                            , @p_activity_date              -- action_date
+                            , @emp_id                       -- emp_id
+                            , @cur_eempl_eff_date           -- eff_date
+                            , @v_END_OF_TIME_DATE           -- next_eff_date
+                            , @v_END_OF_TIME_DATE           -- prior_eff_date
+                            , @eff_date                     -- new_eff_date
+                            , @v_EMPTY_SPACE                -- new_empl_id
+                            , @v_EMPTY_SPACE                -- new_tax_entity_id
+                            , @v_END_OF_TIME_DATE           -- xfer_date
+                            , @v_END_OF_TIME_DATE           -- pay_through_date
+                            )
 
-                            INSERT INTO work_emp_employment_aud
-                                (user_id, activity_action_code, action_date, emp_id, eff_date,
-                                next_eff_date, prior_eff_date, new_eff_date, new_empl_id,
-                                new_tax_entity_id, xfer_date, pay_through_date)
-                            VALUES
-                                (@W_ACTION_USER, 'ERTRANSFER', @W_ACTION_DATETIME, @emp_id,
-                                @p_eff_date, '', '', @p_transfer_date, '', '', '', '')
+                        DELETE work_emp_employment_aud
+                        WHERE (user_id              = @p_user_id)
+                          AND (activity_action_code = 'CHGEMPNE')
+                          AND (emp_id               = @emp_id)
 
-                            DELETE work_emp_employment_aud
-                            WHERE user_id = @W_ACTION_USER
-                            AND activity_action_code = 'ERTRANSFER'
-                            AND emp_id = @emp_id
-                    */
 
                 ---------------------------------------------------------------------------
                 -- Update Processed Flag after successful update
@@ -770,9 +795,9 @@ BEGIN
                     , @p_event_id           = @v_EVENT_ID_PAY_GROUP
                     , @p_emp_id             = @emp_id
                     , @p_eff_date           = @eff_date
-                    , @p_pay_element_id     = ''
-                    , @p_msg_p1             = ''
-                    , @p_msg_p2             = ''
+                    , @p_pay_element_id     = @v_EMPTY_SPACE
+                    , @p_msg_p1             = @v_EMPTY_SPACE
+                    , @p_msg_p2             = @v_EMPTY_SPACE
                     , @p_msg_desc           = @ErrorMessage
                     , @p_activity_status    = @v_ACTIVITY_STATUS_BAD
                     , @p_activity_date      = @p_activity_date
@@ -1070,9 +1095,9 @@ BYPASS_EMPLOYEE:
             , @p_event_id           = @v_EVENT_ID_PAY_GROUP
             , @p_emp_id             = @emp_id
             , @p_eff_date           = @eff_date
-            , @p_pay_element_id     = ''
-            , @p_msg_p1             = ''
-            , @p_msg_p2             = ''
+            , @p_pay_element_id     = @v_EMPTY_SPACE
+            , @p_msg_p1             = @v_EMPTY_SPACE
+            , @p_msg_p2             = @v_EMPTY_SPACE
             , @p_msg_desc           = @ErrorMessage
             , @p_activity_status    = @v_ACTIVITY_STATUS_BAD
             , @p_activity_date      = @p_activity_date
