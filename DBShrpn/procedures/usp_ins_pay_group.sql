@@ -119,6 +119,8 @@ BEGIN
     DECLARE @pay_group_id                   char(10)
     DECLARE @file_source                    char(50)        -- 'SS VENUS' or 'SS GANYMEDE'
 
+    DECLARE @w_audit_tbl_ind                char(1)         = 'Y'             -- Flag to determine whether to audit employee emmployment table changes for pay group changes
+
 
     CREATE TABLE #tbl_ghr_msg
         (
@@ -212,9 +214,27 @@ BEGIN
 
     BEGIN TRY
 
+        ---------------------------------------------------------------------------
+        -- Determine if SmartStream Audit is Enabled for Employee Employment table
+        ---------------------------------------------------------------------------
+        SET @v_step_position = 'Lookup Employee Employment Audit Setting'
+
+        IF NOT EXISTS (
+                       SELECT audit_ind
+                       FROM  hr_audit_ctrl
+                       WHERE (sybase_table_name     = 'emp_employment')
+                         AND (sybase_audit_tbl_name = 'emp_employment_aud')
+                         AND (bypass_audit_ind      = 'N')
+                         AND (audit_ind             = 'Y')
+                      )
+            SET  @w_audit_tbl_ind = 'N'
+
+
+        ---------------------------------------------------------------------------
+        -- Loop through ghr_employee_events_temp to populate error message log entry
+        ---------------------------------------------------------------------------
         SET @v_step_position = 'Declaring cursor crsrHR'
 
-        -- Loop through ghr_employee_events_temp to populate error message log entry
         DECLARE crsrHR CURSOR FAST_FORWARD FOR
         SELECT t.aud_id
              , t.emp_id
@@ -726,46 +746,49 @@ BEGIN
                                 )
 
 
-
                         ---------------------------------------------------------------------------
                         -- Add record to employment audit table
                         ---------------------------------------------------------------------------
-                        INSERT INTO work_emp_employment_aud
-                            (
-                              user_id
-                            , activity_action_code
-                            , action_date
-                            , emp_id
-                            , eff_date
-                            , next_eff_date
-                            , prior_eff_date
-                            , new_eff_date
-                            , new_empl_id
-                            , new_tax_entity_id
-                            , xfer_date
-                            , pay_through_date
-                            )
-                        VALUES
-                            (
-                              @p_user_id                -- user_id
-                            , 'CHGEMPNE'                    -- activity_action_code
-                            , @p_activity_date              -- action_date
-                            , @emp_id                       -- emp_id
-                            , @cur_eempl_eff_date           -- eff_date
-                            , @v_END_OF_TIME_DATE           -- next_eff_date
-                            , @v_END_OF_TIME_DATE           -- prior_eff_date
-                            , @eff_date                     -- new_eff_date
-                            , @v_EMPTY_SPACE                -- new_empl_id
-                            , @v_EMPTY_SPACE                -- new_tax_entity_id
-                            , @v_END_OF_TIME_DATE           -- xfer_date
-                            , @v_END_OF_TIME_DATE           -- pay_through_date
-                            )
+                        IF (@w_audit_tbl_ind = 'Y')
+                        BEGIN
 
-                        DELETE work_emp_employment_aud
-                        WHERE (user_id              = @p_user_id)
-                          AND (activity_action_code = 'CHGEMPNE')
-                          AND (emp_id               = @emp_id)
+                            INSERT INTO work_emp_employment_aud
+                                (
+                                user_id
+                                , activity_action_code
+                                , action_date
+                                , emp_id
+                                , eff_date
+                                , next_eff_date
+                                , prior_eff_date
+                                , new_eff_date
+                                , new_empl_id
+                                , new_tax_entity_id
+                                , xfer_date
+                                , pay_through_date
+                                )
+                            VALUES
+                                (
+                                @p_user_id                -- user_id
+                                , 'CHGEMPNE'                    -- activity_action_code
+                                , @p_activity_date              -- action_date
+                                , @emp_id                       -- emp_id
+                                , @cur_eempl_eff_date           -- eff_date
+                                , @v_END_OF_TIME_DATE           -- next_eff_date
+                                , @v_END_OF_TIME_DATE           -- prior_eff_date
+                                , @eff_date                     -- new_eff_date
+                                , @v_EMPTY_SPACE                -- new_empl_id
+                                , @v_EMPTY_SPACE                -- new_tax_entity_id
+                                , @v_END_OF_TIME_DATE           -- xfer_date
+                                , @v_END_OF_TIME_DATE           -- pay_through_date
+                                )
 
+                            DELETE work_emp_employment_aud
+                            WHERE (user_id              = @p_user_id)
+                            AND (activity_action_code = 'CHGEMPNE')
+                            AND (emp_id               = @emp_id)
+
+                        END
 
                 ---------------------------------------------------------------------------
                 -- Update Processed Flag after successful update
