@@ -578,9 +578,9 @@ BEGIN
                         , (', @asg_new_assign_reason       = ' + @v_single_quote + @v_EMPTY_SPACE                                        + @v_single_quote)
                         , (', @asg_new_beg_date            = ' + @v_single_quote + CONVERT(char(8), @eff_date, 112)                    + @v_single_quote)
                         , (', @asg_new_end_date            = ' + @v_single_quote + CONVERT(char(8), @v_END_OF_TIME_DATE, 112)            + @v_single_quote)
-                        , (', @asg_fte_error_level         = ' + @v_single_quote + 'R'                                                   + @v_single_quote)
+                        , (', @asg_fte_error_level         = ' + @v_single_quote + @v_EMPTY_SPACE                                        + @v_single_quote)
                         , (', @asg_incumbent_error_level   = ' + @v_single_quote + @v_EMPTY_SPACE                                        + @v_single_quote)    -- was 'R' in WTW
-                        , (', @asf_fs_error_level          = ' + @v_single_quote + 'R'                                                   + @v_single_quote)
+                        , (', @asf_fs_error_level          = ' + @v_single_quote + @v_EMPTY_SPACE                                        + @v_single_quote)
                         , (', @asg_new_work_time_ind       = ' + @v_single_quote + @cur_ea_work_tm_code                                  + @v_single_quote)
                         , (', @asg_new_std_hours           = ' +                   CONVERT(varchar, @cur_ea_standard_work_hrs, 0)                         )
                         , (', @asg_new_std_work_period     = ' + @v_single_quote + @cur_ea_standard_work_pd_id                           + @v_single_quote)
@@ -637,9 +637,9 @@ BEGIN
                             , @asg_new_assign_reason       = @v_EMPTY_SPACE                             -- char(05)
                             , @asg_new_beg_date            = @eff_date                                -- datetime
                             , @asg_new_end_date            = @v_END_OF_TIME_DATE                        -- datetime
-                            , @asg_fte_error_level         = 'R'                                        -- char(01)
+                            , @asg_fte_error_level         = @v_EMPTY_SPACE     --'R'                                        -- char(01)
                             , @asg_incumbent_error_level   = @v_EMPTY_SPACE                             -- char(01)        -- was 'R' in WTW
-                            , @asf_fs_error_level          = 'R'                                        -- char(01)
+                            , @asf_fs_error_level          = @v_EMPTY_SPACE     --'R'                                        -- char(01)
                             , @asg_new_work_time_ind       = @cur_ea_work_tm_code                       -- char(01)
                             , @asg_new_std_hours           = @cur_ea_standard_work_hrs                  -- float
                             , @asg_new_std_work_period     = @cur_ea_standard_work_pd_id                -- char(05)
@@ -689,7 +689,7 @@ BEGIN
                                                  WHEN 26139 THEN '26139 - New end date is not within position''s end date.'
                                                  WHEN 26082 THEN '26082 - Assignments to this position are not allowed.'
                                                  WHEN 26007 THEN '26007 - Position incumbent''s exceeded but you may continue.'
-                                                 WHEN 26008 THEN '26008 - Position incumbent''s exceeded but you not may continue.'
+                                                 WHEN 26008 THEN '26008 - Position incumbent''s exceeded but you may may continue.'
                                                  WHEN 26005 THEN '26005 - Position FTE''s exceeded but you may continue.'
                                                  WHEN 26006 THEN '26006 - Position FTE''s exceeded but you not may continue.'
                                                  ELSE 'Unidentified error'
