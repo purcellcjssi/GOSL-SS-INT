@@ -62,6 +62,8 @@ GO
                                                     2) Default all dates fields to '2999-12-31' if value is '9999-12-31'
                                                     3) Added employer id blank validation
                                                        - If blank then default employer id based on file source (SS VENUS vs SS GANYMEDE)
+            6/10/2026   CJP                         4) Added employee employment audit table inicator lookup
+                                                        - Used for labor group and pay group change events
 
 ************************************************************************************/
 
@@ -115,7 +117,7 @@ BEGIN
     DECLARE @w_activity_date	                    datetime
     DECLARE @w_status			                    int
     DECLARE @w_userid			                    varchar(30)
-
+    DECLARE @w_eempl_audit_tbl_ind                  char(1)             = 'N'
 
 
     CREATE TABLE #ghr_employee_events_temp
@@ -197,6 +199,23 @@ BEGIN
         --SET @w_activity_status	= '00'
         -- Use date on bulkcopy step    SET @w_activity_date = CAST(CONVERT(CHAR(20),GETDATE(),120) as DATETIME)
 
+
+        ---------------------------------------------------------------------------
+        -- Determine if SmartStream Audit is Enabled for Employee Employment table
+        ---------------------------------------------------------------------------
+        SET @v_step_position = 'Lookup Employee Employment Audit Setting'
+
+        IF EXISTS (
+                       SELECT audit_ind
+                       FROM  hr_audit_ctrl
+                       WHERE (sybase_table_name     = 'emp_employment')
+                         AND (sybase_audit_tbl_name = 'emp_employment_aud')
+                         AND (bypass_audit_ind      = 'N')
+                         AND (audit_ind  = 'Y')
+                      )
+            SET @w_eempl_audit_tbl_ind = 'Y'
+
+
         ---------------------------------------------------------------------------
         ---------------------------------------------------------------------------
         -- Clear debug table
@@ -212,59 +231,59 @@ BEGIN
 
         INSERT INTO #ghr_employee_events_temp
         (
-          event_id                     
-        , emp_id                       
-        , eff_date                     
-        , first_name                   
-        , first_middle_name            
-        , last_name                    
-        , empl_id                      
-        , national_id_type_code        
-        , national_id                  
-        , organization_group_id        
-        , organization_chart_name      
-        , organization_unit_name       
-        , emp_status_classn_code       
-        , position_title               
-        , employment_type_code         
-        , annual_salary_amt            
-        , begin_date                   
-        , end_date                     
-        , pay_status_code              
-        , pay_group_id                 
-        , pay_element_ctrl_grp_id      
-        , time_reporting_meth_code     
+          event_id
+        , emp_id
+        , eff_date
+        , first_name
+        , first_middle_name
+        , last_name
+        , empl_id
+        , national_id_type_code
+        , national_id
+        , organization_group_id
+        , organization_chart_name
+        , organization_unit_name
+        , emp_status_classn_code
+        , position_title
+        , employment_type_code
+        , annual_salary_amt
+        , begin_date
+        , end_date
+        , pay_status_code
+        , pay_group_id
+        , pay_element_ctrl_grp_id
+        , time_reporting_meth_code
         , employment_info_chg_reason_cd
-        , emp_location_code            
-        , emp_status_code              
-        , reason_code                  
-        , emp_expected_return_date     
-        , pay_through_date             
-        , emp_death_date               
-        , consider_for_rehire_ind      
-        , pay_element_id               
-        , emp_calculation              
-        , tax_flag                     
-        , nic_flag                     
-        , tax_ceiling_amt              
-        , labor_grp_code               
-        , file_source                  
-        , annual_hrs_per_fte           
-        , annual_rate                  
-        , birth_date                   
-        , gender                       
-        , addr_fmt_code                
-        , country_code                 
-        , addr_line_1                  
-        , addr_line_2                  
-        , addr_line_3                  
-        , addr_line_4                  
-        , city_name                    
-        , state_prov                   
-        , postal_code                  
-        , county_name                  
-        , region_name                  
-        , job_or_pos_id                
+        , emp_location_code
+        , emp_status_code
+        , reason_code
+        , emp_expected_return_date
+        , pay_through_date
+        , emp_death_date
+        , consider_for_rehire_ind
+        , pay_element_id
+        , emp_calculation
+        , tax_flag
+        , nic_flag
+        , tax_ceiling_amt
+        , labor_grp_code
+        , file_source
+        , annual_hrs_per_fte
+        , annual_rate
+        , birth_date
+        , gender
+        , addr_fmt_code
+        , country_code
+        , addr_line_1
+        , addr_line_2
+        , addr_line_3
+        , addr_line_4
+        , city_name
+        , state_prov
+        , postal_code
+        , county_name
+        , region_name
+        , job_or_pos_id
         )
         SELECT LEFT(t.event_id, 2) AS event_id
             , LEFT(t.emp_id, 15) AS emp_id
@@ -300,7 +319,7 @@ BEGIN
             , LEFT(t.employment_info_chg_reason_cd, 5) AS employment_info_chg_reason_cd
             , LEFT(t.emp_location_code, 10) AS emp_location_code
             , LEFT(t.emp_status_code, 2) AS emp_status_code
-            , LEFT(t.reason_code, 5) AS reason_code            
+            , LEFT(t.reason_code, 5) AS reason_code
             , CASE
                 WHEN (LEN(RTRIM(t.emp_expected_return_date)) = 0) THEN @v_END_OF_TIME_DATE
                 ELSE COALESCE(TRY_CONVERT(datetime, t.emp_expected_return_date), @v_BAD_DATE_INDICATOR)
@@ -700,10 +719,11 @@ BEGIN
                    )
         BEGIN
             EXEC @w_status = DBShrpn.dbo.usp_ins_pay_group
-                        @p_user_id         = @w_userid
-                      , @p_batchname       = @v_PSC_BATCHNAME
-                      , @p_qualifier       = @w_PSC_QUALIFIER
-                      , @p_activity_date   = @w_activity_date
+                        @p_user_id             = @w_userid
+                      , @p_batchname           = @v_PSC_BATCHNAME
+                      , @p_qualifier           = @w_PSC_QUALIFIER
+                      , @p_activity_date       = @w_activity_date
+                      , @p_eempl_audit_tbl_ind = @w_eempl_audit_tbl_ind
 
             -- Log error if return code is not zero
             IF (@w_status <> 0)
@@ -742,10 +762,11 @@ BEGIN
                    )
         BEGIN
             EXEC @w_status = DBShrpn.dbo.usp_ins_labor_group
-                        @p_user_id         = @w_userid
-                      , @p_batchname       = @v_PSC_BATCHNAME
-                      , @p_qualifier       = @w_PSC_QUALIFIER
-                      , @p_activity_date   = @w_activity_date
+                        @p_user_id             = @w_userid
+                      , @p_batchname           = @v_PSC_BATCHNAME
+                      , @p_qualifier           = @w_PSC_QUALIFIER
+                      , @p_activity_date       = @w_activity_date
+                      , @p_eempl_audit_tbl_ind = @w_eempl_audit_tbl_ind
 
             -- Log error if return code is not zero
             IF (@w_status <> 0)
