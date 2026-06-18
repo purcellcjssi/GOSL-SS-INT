@@ -59,7 +59,7 @@ CREATE PROCEDURE dbo.usp_ins_pay_group
     , @p_batchname                  varchar(08)
     , @p_qualifier                  varchar(30)
     , @p_activity_date              datetime
-    , @p_eempl_audit_tbl_ind        char(1)         = 'Y'             -- Flag to determine whether to populate SmartStream audit table for employee employment table changes
+    , @p_eempl_audit_tbl_ind        char(1)     -- Flag to determine whether to populate SmartStream audit table for employee employment table changes
     )
 AS
 
@@ -119,9 +119,8 @@ BEGIN
     DECLARE @eff_date                       datetime
     DECLARE @empl_id                        char(10)
     DECLARE @pay_group_id                   char(10)
+    DECLARE @cur_labor_grp_code             char(05)
     DECLARE @file_source                    char(50)        -- 'SS VENUS' or 'SS GANYMEDE'
-
-    --DECLARE @w_audit_tbl_ind                char(1)         = 'Y'             -- Flag to determine whether to audit employee emmployment table changes for pay group changes
     DECLARE @w_status			            int
 
 
@@ -133,22 +132,7 @@ BEGIN
 
 
     BEGIN TRY
-/*
-        ---------------------------------------------------------------------------
-        -- Determine if SmartStream Audit is Enabled for Employee Employment table
-        ---------------------------------------------------------------------------
-        SET @v_step_position = 'Lookup Employee Employment Audit Setting'
 
-        IF NOT EXISTS (
-                       SELECT audit_ind
-                       FROM  hr_audit_ctrl
-                       WHERE (sybase_table_name     = 'emp_employment')
-                         AND (sybase_audit_tbl_name = 'emp_employment_aud')
-                         AND (bypass_audit_ind      = 'N')
-                         AND (audit_ind             = 'Y')
-                      )
-            SET  @w_audit_tbl_ind = 'N'
-*/
 
         ---------------------------------------------------------------------------
         -- Loop through ghr_employee_events_temp to populate error message log entry
@@ -234,7 +218,7 @@ BEGIN
                         , @p_pay_element_id     = @v_EMPTY_SPACE
                         , @p_msg_p1             = @v_EMPTY_SPACE
                         , @p_msg_p2             = @v_EMPTY_SPACE
-                        , @p_msg_desc           = 'Bypassing pay group record since pay group update has either occurred in new hire, transfer, or rehire status change event in this extract.'
+                        , @p_msg_desc           = 'Bypassing pay group change due to the presence of either a new hire, transfer, or rehire status change event in this extract. The update would have been processed in one of those events.'
                         , @p_activity_status    = @v_ACTIVITY_STATUS_WARNING
                         , @p_activity_date      = @p_activity_date
                         , @p_audit_id           = @aud_id
@@ -289,10 +273,9 @@ BEGIN
                 SET @msg_id = 'U00012'
                 SET @v_step_position = 'Begin ' + RTRIM(@msg_id)
 
-                SELECT @cur_empl_id                 = eempl.empl_id
-                    --, @cur_tax_entity_id            = eempl.tax_entity_id
-                    , @cur_eempl_eff_date           = eempl.eff_date
+                SELECT @cur_eempl_eff_date           = eempl.eff_date
                     , @cur_pay_group_id             = eempl.pay_group_id
+                    , @cur_labor_grp_code             = eempl.labor_grp_code
                     , @cur_stat_emp_status_code     = stat.emp_status_code
                 FROM DBShrpn.dbo.employee emp
                 JOIN DBShrpn.dbo.uvu_emp_employment_most_rec eempl ON
@@ -492,7 +475,7 @@ BEGIN
                     , @p_emp_id                     = @emp_id
                     , @p_eff_date                   = @eff_date
                     , @p_cur_eempl_eff_date         = @cur_eempl_eff_date
-                    , @p_labor_grp_code             = @labor_grp_code
+                    , @p_labor_grp_code             = @cur_labor_grp_code
                     , @p_pay_group_id               = @pay_group_id
                     , @p_eempl_audit_tbl_ind        = @p_eempl_audit_tbl_ind
 
@@ -847,7 +830,7 @@ BYPASS_EMPLOYEE:
 
     -- Cleanup temp tables
     DROP TABLE #tbl_ghr_msg
-    DROP TABLE #temp14
+
 
     RETURN @v_ret_val
 

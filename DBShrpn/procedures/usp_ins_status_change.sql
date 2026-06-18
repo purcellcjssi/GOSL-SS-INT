@@ -111,8 +111,8 @@ BEGIN
     DECLARE @prior_last_name            	    char(30)
     DECLARE @w_status_change_date       	    datetime
     DECLARE @w_previous_emp_id        	        char(15)
-    DECLARE @w_job_end_date             	    datetime
-    DECLARE @w_position_end_date        	    datetime
+    DECLARE @w_job_end_date             	    datetime            = @v_END_OF_TIME_DATE
+    DECLARE @w_position_end_date        	    datetime            = @v_END_OF_TIME_DATE
     DECLARE @w_todays_date              	    char(12)
     DECLARE @w_old_chgstamp             	    smallint
     DECLARE @w_taxing_country_code    	        char(02)
@@ -176,7 +176,7 @@ BEGIN
     DECLARE @emp_status_code                 	    char(02)
     DECLARE @reason_code                     	    char(02)
     -- DECLARE @emp_expected_return_date        	    char(10)
-    -- DECLARE @pay_through_date                	    datetime
+    DECLARE @pay_through_date                	    datetime
     DECLARE @emp_death_date                  	    datetime
     DECLARE @consider_for_rehire_ind         	    char(01)
     --DECLARE @pay_element_id                  	    char(10)
@@ -250,6 +250,7 @@ BEGIN
              , t.time_reporting_meth_code
              , t.emp_status_code
              , t.reason_code
+             , t.pay_through_date
              , t.emp_death_date
              , t.consider_for_rehire_ind
              , t.tax_flag
@@ -293,6 +294,7 @@ BEGIN
             , @time_reporting_meth_code
             , @emp_status_code
             , @reason_code
+            , @pay_through_date
             , @emp_death_date
             , @consider_for_rehire_ind
             , @tax_flag
@@ -716,7 +718,7 @@ BEGIN
                 IF   @emp_status_code = 'RH'
                     BEGIN
                         IF (@w_curr_status = 'T') AND
-                        (@eff_date   <= @w_status_change_date)
+                           (@eff_date     <= @w_status_change_date)
                             BEGIN
 
                                 -- Convert date to string for log table
@@ -737,7 +739,7 @@ BEGIN
                                     , @p_pay_element_id     = @v_EMPTY_SPACE
                                     , @p_msg_p1             = @w_curr_status
                                     , @p_msg_p2             = @w_msg_text_2
-                                    , @p_msg_desc           = 'The rehire date must be greater than the termination date - By passing the employee.'
+                                    , @p_msg_desc           = 'The rehire date must be greater than the termination date.'
                                     , @p_activity_status    = @v_ACTIVITY_STATUS_BAD
                                     , @p_activity_date      = @p_activity_date
                                     , @p_audit_id           = @aud_id
@@ -778,7 +780,7 @@ BEGIN
                                     , @p_pay_element_id     = @v_EMPTY_SPACE
                                     , @p_msg_p1             = @w_curr_status
                                     , @p_msg_p2             = @w_msg_text_2
-                                    , @p_msg_desc           = 'The Reactivation date must be greater than the inactivation date - By passing the employee.'
+                                    , @p_msg_desc           = 'The Reactivation date must be greater than the inactivation date.'
                                     , @p_activity_status    = @v_ACTIVITY_STATUS_BAD
                                     , @p_activity_date      = @p_activity_date
                                     , @p_audit_id           = @aud_id
@@ -789,9 +791,116 @@ BEGIN
                             END
                     END
 
+
+                ---------------------------------------------------------------------------
+                -- Can't terminate a terminated associate
+                ---------------------------------------------------------------------------
+                IF (@emp_status_code = 'T') AND
+                   (@w_curr_status   = 'T')
+                    BEGIN
+
+                        SET @msg_id = 'U00042'
+                        SET @v_step_position = @msg_id + ' Termination - Associate Already Terminated'
+
+                        INSERT INTO #tbl_ghr_msg
+                        SELECT @msg_id AS msg_id
+                            , REPLACE(t.msg_text, '@1', @emp_id) AS msg_desc
+                        FROM DBSCOMMON.dbo.message_master t
+                        WHERE (t.msg_id = @msg_id)
+
+                        -- Historical Message for reporting purpose
+                        EXEC DBShrpn.dbo.usp_ins_ghr_historical_message
+                            @p_msg_id             = @msg_id
+                            , @p_event_id           = @v_EVENT_ID_STATUS_CHANGE
+                            , @p_emp_id             = @emp_id
+                            , @p_eff_date           = @eff_date
+                            , @p_pay_element_id     = @v_EMPTY_SPACE
+                            , @p_msg_p1             = @w_curr_status
+                            , @p_msg_p2             = @v_EMPTY_SPACE
+                            , @p_msg_desc           = 'Termination - Associate is already terminated in SmartStream.'
+                            , @p_activity_status    = @v_ACTIVITY_STATUS_BAD
+                            , @p_activity_date      = @p_activity_date
+                            , @p_audit_id           = @aud_id
+
+                        SET @w_fatal_error = 1
+
+                    END
+
+
+                ----------------------------------------------------------------------------
+                -- Can only rehire an associate if the current status is terminated
+                ----------------------------------------------------------------------------
+                IF (@emp_status_code = 'RH') AND
+                    (@w_curr_status  <> 'T')
+                    BEGIN
+
+                        SET @msg_id = 'U00022'
+                        SET @v_step_position = RTRIM(@msg_id) + ' Rehire - Associate Not Terminated'
+
+                        INSERT INTO #tbl_ghr_msg
+                        SELECT @msg_id As msg_id
+                            , REPLACE(REPLACE(t.msg_text, '@1', RTRIM(@w_curr_status_value)), '@2', @emp_id) AS msg_desc
+                        FROM DBSCOMMON.dbo.message_master t
+                        WHERE (t.msg_id = @msg_id)
+
+                        -- Historical Message for reporting purpose
+                        EXEC DBShrpn.dbo.usp_ins_ghr_historical_message
+                            @p_msg_id             = @msg_id
+                            , @p_event_id           = @v_EVENT_ID_STATUS_CHANGE
+                            , @p_emp_id             = @emp_id
+                            , @p_eff_date           = @eff_date
+                            , @p_pay_element_id     = @v_EMPTY_SPACE
+                            , @p_msg_p1             = @w_curr_status
+                            , @p_msg_p2             = @v_EMPTY_SPACE
+                            , @p_msg_desc           = 'Cannot rehire an employee if the current status is not terminated.'
+                            , @p_activity_status    = @v_ACTIVITY_STATUS_BAD
+                            , @p_activity_date      = @p_activity_date
+                            , @p_audit_id           = @aud_id
+
+                        SET @w_fatal_error = 1
+
+                    END
+
+
+                --------------------------------------------------------------------------
+                -- Can only inactivate an associate if the current status is active
+                --------------------------------------------------------------------------
+                IF (@emp_status_code = 'I') AND
+                    (@w_curr_status  <> 'A')
+                    BEGIN
+                        SET @msg_id = 'U00024'
+                        SET @v_step_position = RTRIM(@msg_id) + ' - Inactivate - Associate Not Active'
+
+                        INSERT INTO #tbl_ghr_msg
+                        SELECT @msg_id      As msg_id
+                            , REPLACE(t.msg_text, '@1', @emp_id) AS msg_desc
+                        FROM DBSCOMMON.dbo.message_master t
+                        WHERE (t.msg_id = @msg_id)
+
+
+                        -- Historical Message for reporting purpose
+                        EXEC DBShrpn.dbo.usp_ins_ghr_historical_message
+                            @p_msg_id             = @msg_id
+                            , @p_event_id           = @v_EVENT_ID_STATUS_CHANGE
+                            , @p_emp_id             = @emp_id
+                            , @p_eff_date           = @eff_date
+                            , @p_pay_element_id     = @v_EMPTY_SPACE
+                            , @p_msg_p1             = @w_curr_status
+                            , @p_msg_p2             = @w_msg_text_2
+                            , @p_msg_desc           = 'Cannot inactivate associate if the current status is not active.'
+                            , @p_activity_status    = @v_ACTIVITY_STATUS_BAD
+                            , @p_activity_date      = @p_activity_date
+                            , @p_audit_id           = @aud_id
+
+                        SET @w_fatal_error = 1
+
+                    END
+
+
                 -- Skip record if errors encountered
                 IF (@w_fatal_error = 1)
                     GOTO BYPASS_EMPLOYEE
+
 
                 ---------------------------------------------------------------------------
                 ---------------------------------------------------------------------------
@@ -809,17 +918,9 @@ BEGIN
 
 
                 ---------------------------------------------------------------------------
-                --   Find the Job_position end date and Assignment end date
-                ---------------------------------------------------------------------------
-                SELECT @w_position_end_date = @v_END_OF_TIME_DATE
-                     , @w_job_end_date      = @v_END_OF_TIME_DATE
-
-
-
-                ---------------------------------------------------------------------------
                 --   Obtain prior employee number
                 ---------------------------------------------------------------------------
-                SELECT @w_previous_emp_id = prior_emp_id
+                SELECT @w_previous_emp_id = emp.prior_emp_id
                 FROM employee emp
                 JOIN emp_status stat ON
                     (emp.emp_id = stat.emp_id)
@@ -832,7 +933,7 @@ BEGIN
 
 
                 SELECT @w_taxing_country_code = empl.taxing_country_code
-                    , @w_curr_code = empl.curr_code
+                     , @w_curr_code           = empl.curr_code
                 FROM DBShrpn.dbo.employer empl
                 WHERE (empl.empl_id = @empl_id)
 
@@ -843,7 +944,6 @@ BEGIN
                 ---------------------------------------------------------------------------
                 IF (@emp_status_code = 'RH')
                     BEGIN
-
 
                         IF (@w_curr_status = 'T')
                             BEGIN
@@ -1031,32 +1131,7 @@ BEGIN
 
 
                             END
-                        ELSE    -- Associate Not terminated
-                            BEGIN
-                                SET @msg_id = 'U00022'
-                                SET @v_step_position = 'Rehire Not Terminated ' + RTRIM(@msg_id)
 
-                                INSERT INTO #tbl_ghr_msg
-                                SELECT @msg_id As msg_id
-                                    , REPLACE(REPLACE(t.msg_text, '@1', RTRIM(@w_curr_status_value)), '@2', @emp_id) AS msg_desc
-                                FROM DBSCOMMON.dbo.message_master t
-                                WHERE (t.msg_id = @msg_id)
-
-                                -- Historical Message for reporting purpose
-                                EXEC DBShrpn.dbo.usp_ins_ghr_historical_message
-                                    @p_msg_id             = @msg_id
-                                    , @p_event_id           = @v_EVENT_ID_STATUS_CHANGE
-                                    , @p_emp_id             = @emp_id
-                                    , @p_eff_date           = @eff_date
-                                    , @p_pay_element_id     = @v_EMPTY_SPACE
-                                    , @p_msg_p1             = @w_curr_status
-                                    , @p_msg_p2             = @v_EMPTY_SPACE
-                                    , @p_msg_desc           = 'Cannot rehire an employee if the current status is not terminated.'
-                                    , @p_activity_status    = @v_ACTIVITY_STATUS_BAD
-                                    , @p_activity_date      = @p_activity_date
-                                    , @p_audit_id           = @aud_id
-
-                            END
                     END  -- End of Rehire (RH) Logic
 
 
@@ -1102,33 +1177,6 @@ BEGIN
                                     , @p_old_chgstamp              = @w_old_chgstamp
 
                             END
-                        ELSE
-                            BEGIN
-                                SET @msg_id = 'U00024'
-                                SET @v_step_position = @v_step_position + ' - ' + @w_curr_status + ' - ' + RTRIM(@msg_id)
-
-                                INSERT INTO #tbl_ghr_msg
-                                SELECT @msg_id      As msg_id
-                                    , REPLACE(t.msg_text, '@1', @emp_id) AS msg_desc
-                                FROM DBSCOMMON.dbo.message_master t
-                                WHERE (t.msg_id = @msg_id)
-
-
-                                -- Historical Message for reporting purpose
-                                EXEC DBShrpn.dbo.usp_ins_ghr_historical_message
-                                    @p_msg_id             = @msg_id
-                                    , @p_event_id           = @v_EVENT_ID_STATUS_CHANGE
-                                    , @p_emp_id             = @emp_id
-                                    , @p_eff_date           = @eff_date
-                                    , @p_pay_element_id     = @v_EMPTY_SPACE
-                                    , @p_msg_p1             = @w_curr_status
-                                    , @p_msg_p2             = @w_msg_text_2
-                                    , @p_msg_desc           = 'Cannot inactivate associate if the current status is not active.'
-                                    , @p_activity_status    = @v_ACTIVITY_STATUS_BAD
-                                    , @p_activity_date      = @p_activity_date
-                                    , @p_audit_id           = @aud_id
-
-                            END
 
                     END  -- End of Inactivate Logic
 
@@ -1161,7 +1209,7 @@ BEGIN
                                 , (', @p_new_classn_cd              = ' + @v_single_quote + @emp_status_classn_code                             + @v_single_quote)
                                 , (', @p_date_of_death              = ' + @v_single_quote + CONVERT(char(8), @v_END_OF_TIME_DATE, 112)          + @v_single_quote)
                                 , (', @p_new_reason_code            = ' + @v_single_quote + RTRIM(@reason_code)                                 + @v_single_quote)
-                                , (', @p_new_pay_through_date       = ' + @v_single_quote + CONVERT(char(8), @eff_date, 112)                  + @v_single_quote)
+                                , (', @p_new_pay_through_date       = ' + @v_single_quote + CONVERT(char(8), @pay_through_date, 112)          + @v_single_quote)
                                 , (', @p_new_rehire_conson          = ' + @v_single_quote + @consider_for_rehire_ind                            + @v_single_quote)
                                 , (', @p_pay_status_code            = ' + @v_single_quote + RTRIM(pay_status_code)                              + @v_single_quote)
                                 , (', @p_last_day_paid              = ' + @v_single_quote + CONVERT(char(8), @v_BEG_OF_TIME_DATE, 112)          + @v_single_quote)
@@ -1180,14 +1228,14 @@ BEGIN
                                     , @p_new_classn_cd          = @emp_status_classn_code
                                     , @p_date_of_death          = @emp_death_date
                                     , @p_new_reason_code        = @reason_code
-                                    , @p_new_pay_through_date   = @eff_date
+                                    , @p_new_pay_through_date   = @pay_through_date
                                     , @p_new_rehire_conson      = @consider_for_rehire_ind
                                     , @p_pay_status_code        = @pay_status_code
                                     , @p_last_day_paid          = @v_BEG_OF_TIME_DATE
                                     , @p_old_chgstamp           = @w_old_chgstamp
 
 
-
+/*
                                 --  New Record Update to resolve conflict with the rehire date
                                 UPDATE DBShrpn.dbo.emp_employment
                                 SET pay_status_code = @pay_status_code
@@ -1200,32 +1248,7 @@ BEGIN
                                 SET next_eff_date = @eff_date
                                 WHERE (emp_id   = @emp_id)
                                 AND (eff_date = @old_eff_date)
-
-                            END
-                        ELSE
-                            BEGIN
-                                SET @msg_id = 'U00042'
-                                SET @v_step_position = @v_step_position + ' - ' + @msg_id + ' Associate Already Terminated'
-
-                                INSERT INTO #tbl_ghr_msg
-                                SELECT @msg_id AS msg_id
-                                    , REPLACE(t.msg_text, '@1', @emp_id) AS msg_desc
-                                FROM DBSCOMMON.dbo.message_master t
-                                WHERE (t.msg_id = @msg_id)
-
-                                -- Historical Message for reporting purpose
-                                EXEC DBShrpn.dbo.usp_ins_ghr_historical_message
-                                    @p_msg_id             = @msg_id
-                                    , @p_event_id           = @v_EVENT_ID_STATUS_CHANGE
-                                    , @p_emp_id             = @emp_id
-                                    , @p_eff_date           = @eff_date
-                                    , @p_pay_element_id     = @v_EMPTY_SPACE
-                                    , @p_msg_p1             = @w_curr_status
-                                    , @p_msg_p2             = @v_EMPTY_SPACE
-                                    , @p_msg_desc           = 'Associate is already terminated in SmartStream.'
-                                    , @p_activity_status    = @v_ACTIVITY_STATUS_BAD
-                                    , @p_activity_date      = @p_activity_date
-                                    , @p_audit_id           = @aud_id
+*/
 
                             END
 
@@ -1257,13 +1280,13 @@ BEGIN
                 ---------------------------------------------------------------------------
                 -- Reactivate Associate
                 ---------------------------------------------------------------------------
-                -- Assocaite must be inactive otherwise log error based on rehire overide flag
+                -- Associate must be inactive otherwise log error based on rehire overide flag
 
-                IF   (@emp_status_code = 'RA')
-                    BEGIN --1
+                IF (@emp_status_code = 'RA')
+                    BEGIN
 
                         IF (@w_curr_status = 'I')
-                            BEGIN  --2
+                            BEGIN
                                 SET @v_step_position = 'Rehire RA Inactive'
 
                                 -- Note: This procedure does not create a new employee assignment record
@@ -1279,18 +1302,16 @@ BEGIN
 
                                 -- UPDATE SALARY ??????????
 
-
-
-                            END  --2
+                            END
                         ELSE
                             -- Terminated Associate
-                            BEGIN --3
+                            BEGIN
                                 -- RH record not present in extract
                                 IF (@rehire_override = 'N')
-                                    BEGIN  --4
+                                    BEGIN
 
                                         SET @msg_id = 'U00025'
-                                        SET @v_step_position = 'Rehire Overide - ''0'' - ' + @msg_id
+                                        SET @v_step_position = RTRIM(@msg_id) + ' - Rehire Overide - ''N'' '
 
                                         INSERT INTO #tbl_ghr_msg
                                         SELECT @msg_id As msg_id
@@ -1312,9 +1333,13 @@ BEGIN
                                             , @p_activity_date      = @p_activity_date
                                             , @p_audit_id           = @aud_id
 
-                                    END    --4
+                                        -- End processing
+                                        -- Did not add with to top validation due to @rehire_override lookup
+                                        GOTO BYPASS_EMPLOYEE
+
+                                    END
                                 ELSE
-                                    BEGIN --5
+                                    BEGIN
                                         -- RH record present in extract
                                         -- RH transaction record will process status update
                                         SET @v_step_position = 'Rehire RA - ' + @w_curr_status + ' - ' + 'Activity Status ' + @v_ACTIVITY_STATUS_WARNING
@@ -1336,9 +1361,9 @@ BEGIN
                                             , @p_activity_date      = @p_activity_date
                                             , @p_audit_id           = @aud_id
 
-                                    END  --5
-                            END --3
-                    END --1  -- End of Reactivate Logic
+                                    END
+                            END
+                    END -- End of Reactivate Logic
 
 
                 ---------------------------------------------------------------------------
@@ -1438,6 +1463,7 @@ BYPASS_EMPLOYEE:
             , @time_reporting_meth_code
             , @emp_status_code
             , @reason_code
+            , @pay_through_date
             , @emp_death_date
             , @consider_for_rehire_ind
             , @tax_flag

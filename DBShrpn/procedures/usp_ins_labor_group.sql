@@ -56,10 +56,11 @@ GO
 
 CREATE PROCEDURE dbo.usp_ins_labor_group
     (
-      @p_user_id            varchar(30)
-    , @p_batchname          varchar(08)
-    , @p_qualifier          varchar(30)
-    , @p_activity_date      datetime
+      @p_user_id                    varchar(30)
+    , @p_batchname                  varchar(08)
+    , @p_qualifier                  varchar(30)
+    , @p_activity_date              datetime
+    , @p_eempl_audit_tbl_ind        char(1)     -- Flag to determine whether to populate SmartStream audit table for employee employment table changes
     )
 AS
 
@@ -93,13 +94,13 @@ BEGIN
     DECLARE @ErrorSeverity                  int
     DECLARE @ErrorState                     int
 
-    DECLARE @v_ret_val                      int = 0
+    DECLARE @v_ret_val                      int                 = 0
 
     DECLARE @w_msg_text                     varchar(255)
     DECLARE @w_msg_text_2                   varchar(255)
     DECLARE @w_msg_text_3                   varchar(255)
     DECLARE @w_severity_cd                  tinyint
-    DECLARE @w_fatal_error                  bit     = 0         --char(01)
+    DECLARE @w_fatal_error                  bit                 = 0
 
     DECLARE @individual_id                  char(10)
     DECLARE @prior_last_name                char(30)
@@ -109,17 +110,18 @@ BEGIN
 
     DECLARE @cur_empl_id                    char(10)
     DECLARE @cur_eempl_eff_date             datetime
-    --DECLARE @cur_tax_entity_id              char(10)
+    DECLARE @cur_pay_group_id               char(10)
     DECLARE @cur_labor_grp_code             char(05)
     DECLARE @cur_stat_emp_status_code       char(01)
     --DECLARE @w_eff_date                     datetime
 
     -- This section declares the interface values from Global HR
-    DECLARE @aud_id                         int             = 0
-    DECLARE @emp_id                         char(15)        = @v_EMPTY_SPACE
+    DECLARE @aud_id                         int                 = 0
+    DECLARE @emp_id                         char(15)            = @v_EMPTY_SPACE
     DECLARE @eff_date                       datetime
     DECLARE @empl_id                        char(10)
     DECLARE @labor_grp_code                 char(05)
+
     DECLARE @file_source                    char(50)        -- 'SS VENUS' or 'SS GANYMEDE'
 
     DECLARE @w_status			            int
@@ -132,22 +134,6 @@ BEGIN
 
 
     BEGIN TRY
-
-
-        ---------------------------------------------------------------------------
-        -- Determine if SmartStream Audit is Enabled for Employee Employment table
-        ---------------------------------------------------------------------------
-        SET @v_step_position = 'Lookup Employee Employment Audit Setting'
-
-        IF NOT EXISTS (
-                       SELECT audit_ind
-                       FROM  hr_audit_ctrl
-                       WHERE (sybase_table_name     = 'emp_employment')
-                         AND (sybase_audit_tbl_name = 'emp_employment_aud')
-                         AND (bypass_audit_ind      = 'N')
-                         AND (audit_ind  = 'Y')
-                      )
-            SET  @w_audit_tbl_ind = 'N'
 
 
         ---------------------------------------------------------------------------
@@ -235,7 +221,7 @@ BEGIN
                         , @p_pay_element_id     = @v_EMPTY_SPACE
                         , @p_msg_p1             = @v_EMPTY_SPACE
                         , @p_msg_p2             = @v_EMPTY_SPACE
-                        , @p_msg_desc           = 'Bypassing labor group record since update has either occurred in either new hire, transfer, or rehire status change event in this extract.'
+                        , @p_msg_desc           = 'Bypassing labor group change due to the presence of either a new hire, transfer, or rehire status change event in this extract. The update would have been processed in one of those events.'
                         , @p_activity_status    = @v_ACTIVITY_STATUS_WARNING
                         , @p_activity_date      = @p_activity_date
                         , @p_audit_id           = @aud_id
@@ -325,6 +311,7 @@ BEGIN
                     --, @cur_tax_entity_id            = eempl.tax_entity_id
                     , @cur_eempl_eff_date           = eempl.eff_date
                     , @cur_labor_grp_code           = eempl.labor_grp_code
+                    , @cur_pay_group_id             = eempl.pay_group_id
                     , @cur_stat_emp_status_code     = stat.emp_status_code
                     -- AUDIT
                     -- need transfer date - can it be end of time when not transfering associate?
@@ -532,7 +519,7 @@ BEGIN
                     , @p_eff_date                   = @eff_date
                     , @p_cur_eempl_eff_date         = @cur_eempl_eff_date
                     , @p_labor_grp_code             = @labor_grp_code
-                    , @p_pay_group_id               = @pay_group_id
+                    , @p_pay_group_id               = @cur_pay_group_id
                     , @p_eempl_audit_tbl_ind        = @p_eempl_audit_tbl_ind
 
 
@@ -885,7 +872,7 @@ BYPASS_EMPLOYEE:
 
     -- Cleanup temp tables
     DROP TABLE #tbl_ghr_msg
-    DROP TABLE #temp14
+
 
     RETURN @v_ret_val
 

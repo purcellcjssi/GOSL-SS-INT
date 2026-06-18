@@ -24,18 +24,25 @@ GO
 
 
     Parameters:
-        @p_user_id       =  User ID (i.e. 'DBS')
-        @p_batchname     = Job Scheduler Batch Name (i.e. 'GHR')
-        @p_qualifier     = Job Scheduler Qualifier (i.e. 'INTERFACES')
-        @p_activity_date = Current System Date
-
+        @p_user_id             =  User ID (i.e. 'DBS')
+        @p_activity_date       = Current System Date
+        @p_emp_id              = Employee ID
+        @p_eff_date            = Effective Date
+        @p_cur_eempl_eff_date  = Current Employee Employment Effective Date
+        @p_labor_grp_code      = Labor Group Code
+        @p_pay_group_id        = Pay Group ID
+        @p_eempl_audit_tbl_ind = Employee Employment Audit Table Indicator ('Y' or 'N')
 
     Example:
         EXEC DBShrpn.dbo.usp_upd_emp_employment
-              @p_user_id         = @w_userid
-            , @p_batchname       = @v_PSC_BATCHNAME
-            , @p_qualifier       = @w_PSC_QUALIFIER
-            , @p_activity_date   = @w_activity_date
+                      @p_user_id                    = 'DBS'
+                    , @p_activity_date              = '2026-06-08 12:26:36.570'
+                    , @p_emp_id                     = '14514'
+                    , @p_eff_date                   = '2026-06-08'
+                    , @p_cur_eempl_eff_date         = '2025-06-01'
+                    , @p_labor_grp_code             = 'LBR01'
+                    , @p_pay_group_id               = 'PAY01'
+                    , @p_eempl_audit_tbl_ind        = 'Y'
 
 
    Revision history:
@@ -72,8 +79,8 @@ BEGIN
     DECLARE @ErrorSeverity                  int
     DECLARE @ErrorState                     int
 
-    DECLARE @v_ret_val                      int = 0
-    DECLARE @w_audit_tbl_ind                char(1)         = 'Y'             -- Flag to determine whether to audit employee emmployment table changes for labor group changes
+    DECLARE @v_ret_val                      int                 = 0
+    DECLARE @w_audit_tbl_ind                char(1)             = 'Y'             -- Flag to determine whether to audit employee emmployment table changes for labor group changes
 
 
 
@@ -436,7 +443,7 @@ BEGIN
                             , 'CHGEMPNE'                -- activity_action_code
                             , @p_activity_date          -- action_date
                             , @p_emp_id                 -- emp_id
-                            , @cur_eempl_eff_date       -- eff_date
+                            , @p_cur_eempl_eff_date       -- eff_date
                             , @v_END_OF_TIME_DATE       -- next_eff_date
                             , @v_END_OF_TIME_DATE       -- prior_eff_date
                             , @p_eff_date               -- new_eff_date
@@ -450,7 +457,7 @@ BEGIN
                         DELETE work_emp_employment_aud
                         WHERE (user_id              = @p_user_id)
                             AND (activity_action_code = 'CHGEMPNE')
-                            AND (emp_id               = @emp_id)
+                            AND (emp_id               = @p_emp_id)
 
                     END
 
@@ -472,6 +479,7 @@ BEGIN
 
     -- Cleanup temp table
     DROP TABLE #temp14
+
 
     RETURN @v_ret_val
 
