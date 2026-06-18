@@ -58,6 +58,7 @@ GO
                                                     1) Updated employer id validation to skip record if invalid
                                                         - default setting handled in usp_sel_employee_events
                                                     2) Removed unused import fields
+            06/18/2026                              3) Fixed Labor Group update - emp_id was missing in where clause
 
 ************************************************************************************/
 
@@ -1235,21 +1236,6 @@ BEGIN
                                     , @p_old_chgstamp           = @w_old_chgstamp
 
 
-/*
-                                --  New Record Update to resolve conflict with the rehire date
-                                UPDATE DBShrpn.dbo.emp_employment
-                                SET pay_status_code = @pay_status_code
-                                , eff_date        = @eff_date
-                                WHERE (emp_id        = @emp_id)
-                                AND (next_eff_date = @v_END_OF_TIME_DATE)
-
-                                --  Update prior record to point to the new record.
-                                UPDATE DBShrpn.dbo.emp_employment
-                                SET next_eff_date = @eff_date
-                                WHERE (emp_id   = @emp_id)
-                                AND (eff_date = @old_eff_date)
-*/
-
                             END
 
                     END  -- End of Terminate Logic
@@ -1378,7 +1364,8 @@ BEGIN
                         -- update latest emp employment record with labor group code
                         UPDATE DBShrpn.dbo.emp_employment
                         SET labor_grp_code = @labor_grp_code
-                        WHERE (next_eff_date = @v_END_OF_TIME_DATE)
+                        WHERE (emp_id        = @emp_id)     -- cjp 6/18/2026 - missing emp_id in where clause
+                          AND (next_eff_date = @v_END_OF_TIME_DATE)
 
                         ---------------------------------------------------------------------------
                         -- GOSL update NIC and Tax Code

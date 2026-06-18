@@ -44,6 +44,7 @@ GO
    1.0.01   05/18/2026  CJP                     - Commit Error
                                                     1) Updated employer id validation to skip record if invalid
                                                         - default setting handled in usp_sel_employee_events
+            06/18/2026  CJP                         2) Fixed emp_assignment update to use valid variables in where clause
 
 ************************************************************************************/
 
@@ -89,13 +90,14 @@ BEGIN
     DECLARE @w_msg_text_3                               varchar(255)
     DECLARE @w_severity_cd                              tinyint
     DECLARE @w_fatal_error                              bit                 = 0
+    DECLARE @w_ASSIGNED_TO_CODE                         char(01)        = 'P'
 
     DECLARE @rehire_override                            bit
     DECLARE @maxx                                       char(06)
 
     DECLARE @new_annual_salary_amt    money
 
-
+/*
     DECLARE @new_emp_asgn_assigned_to_code              char(01)
     DECLARE @new_emp_asgn_job_or_pos_id                 char(10)
     DECLARE @new_emp_asgn_eff_date                      datetime
@@ -109,7 +111,7 @@ BEGIN
     DECLARE @new_emp_asgn_base_rate_tbl_id              char(10)
     DECLARE @new_emp_asgn_base_rate_tbl_entry_code      char(08)
     DECLARE @new_emp_asgn_pd_salary_tm_pd_id            char(05)
-
+*/
 
     DECLARE @cur_ea_assigned_to_code                    char(01)
     DECLARE @cur_ea_job_or_pos_id                       char(10)
@@ -778,7 +780,7 @@ BEGIN
                                     , @p_pay_element_id     = @v_EMPTY_SPACE
                                     , @p_msg_p1             = @cur_emp_status_code
                                     , @p_msg_p2             = @v_EMPTY_SPACE
-                                    , @p_msg_desc           = 'Terminated employee is a rehire in current extract - bypassing transfer.'
+                                    , @p_msg_desc           = 'Terminated employee contains a rehire change event in current extract - bypassing transfer.'
                                     , @p_activity_status    = @v_ACTIVITY_STATUS_BAD
                                     , @p_activity_date      = @p_activity_date
                                     , @p_audit_id           = @aud_id
@@ -788,6 +790,88 @@ BEGIN
                             END
 
                     END
+
+
+                ---------------------------------------------------------------------------
+                -- Check to see if new pay group id exists
+                ---------------------------------------------------------------------------
+                -- Added 6/18/2026
+                SET @msg_id = 'U00020'
+                SET @v_step_position = 'Begin ' + RTRIM(@msg_id)
+
+                IF NOT EXISTS(
+                            SELECT 1
+                            FROM DBShrpn.dbo.pay_group
+                            WHERE (pay_group_id = @pay_group_id)
+                            )
+                    BEGIN
+
+                        INSERT INTO #tbl_ghr_msg
+                        SELECT @msg_id As msg_id
+                            , REPLACE(REPLACE(t.msg_text, '@1', @pay_group_id), '@2', @emp_id) AS msg_desc
+                        FROM DBSCOMMON.dbo.message_master t
+                        WHERE (t.msg_id = @msg_id)
+
+
+                        -- Historical Message for reporting purpose
+                        EXEC DBShrpn.dbo.usp_ins_ghr_historical_message
+                            @p_msg_id             = @msg_id
+                            , @p_event_id           = @v_EVENT_ID_TRANSFER
+                            , @p_emp_id             = @emp_id
+                            , @p_eff_date           = @eff_date
+                            , @p_pay_element_id     = @v_EMPTY_SPACE
+                            , @p_msg_p1             = @emp_id
+                            , @p_msg_p2             = @pay_group_id
+                            , @p_msg_desc           = 'Invalid pay group id - bypassing transfer.'
+                            , @p_activity_status    = @v_ACTIVITY_STATUS_BAD
+                            , @p_activity_date      = @p_activity_date
+                            , @p_audit_id           = @aud_id
+
+                        SET  @w_fatal_error = 1
+
+                    END
+
+
+                ---------------------------------------------------------------------------
+                -- Is Labor Group Code Valid
+                ---------------------------------------------------------------------------
+                SET @msg_id = 'U00111'
+                SET @v_step_position = 'Begin ' + RTRIM(@msg_id)
+
+                IF NOT EXISTS(
+                            SELECT 1
+                            FROM DBShrpn.dbo.code_entry_policy
+                            WHERE (code_tbl_id = '10204')   -- 'Labor Group' code table id
+                            and (code_value = @labor_grp_code)
+                            )
+                    BEGIN
+
+                        INSERT INTO #tbl_ghr_msg
+                        SELECT @msg_id As msg_id
+                            , REPLACE(REPLACE(msg_text, '@1', @labor_grp_code), '@2', @emp_id) AS msg_desc
+                        FROM DBSCOMMON.dbo.message_master
+                        WHERE (msg_id = @msg_id)
+
+
+                        -- Historical Message for reporting purpose
+                        EXEC DBShrpn.dbo.usp_ins_ghr_historical_message
+                            @p_msg_id             = @msg_id
+                            , @p_event_id           = @v_EVENT_ID_TRANSFER
+                            , @p_emp_id             = @emp_id
+                            , @p_eff_date           = @eff_date
+                            , @p_pay_element_id     = @v_EMPTY_SPACE
+                            , @p_msg_p1             = @labor_grp_code
+                            , @p_msg_p2             = @v_EMPTY_SPACE
+                            , @p_msg_desc           = 'Invalid labor group code - bypassing transfer.'
+                            , @p_activity_status    = @v_ACTIVITY_STATUS_BAD
+                            , @p_activity_date      = @p_activity_date
+                            , @p_audit_id           = @aud_id
+
+                        SET  @w_fatal_error = 1
+
+                    END
+
+
 
 
                 IF (@w_fatal_error = 1)
@@ -909,9 +993,9 @@ BEGIN
                   , user_text_1                 = @cur_ea_user_text_1
                   , user_text_2                 = @position_title
                 WHERE   (emp_id           = @emp_id)
-                    AND (assigned_to_code = @new_emp_asgn_assigned_to_code)
-                    AND (job_or_pos_id    = @new_emp_asgn_job_or_pos_id)
-                    AND (eff_date         = @new_emp_asgn_eff_date)
+                    AND (assigned_to_code = @w_ASSIGNED_TO_CODE)    -- cjp 6/18/2026
+                    AND (job_or_pos_id    = @job_or_pos_id)         -- cjp 6/18/2026
+                    AND (eff_date         = @eff_date)              -- cjp 6/18/2026
 
 
                 ---------------------------------------------------------------------------
@@ -920,7 +1004,8 @@ BEGIN
                 -- update latest emp employment record with labor group code
                 UPDATE DBShrpn.dbo.emp_employment
                 SET labor_grp_code = @labor_grp_code
-                WHERE (next_eff_date = @v_END_OF_TIME_DATE)
+                WHERE (emp_id        = @emp_id)     -- cjp 6/18/2026 - missing emp_id in where clause
+                  AND (next_eff_date = @v_END_OF_TIME_DATE)
 
 
                 ---------------------------------------------------------------------------
