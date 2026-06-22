@@ -44,6 +44,7 @@ GO
    1.0.01   05/18/2026  CJP                     - Commit Error
                                                     1) Updated employer id validation to skip record if invalid
                                                         - default setting handled in usp_sel_employee_events
+            06/18/2026  CJP                         3) Added logic if pay group id is invalid, default to '99999'
 
 ************************************************************************************/
 
@@ -562,15 +563,16 @@ BEGIN
                             , @p_pay_element_id     = @v_EMPTY_SPACE
                             , @p_msg_p1             = @pay_group_id
                             , @p_msg_p2             = @v_EMPTY_SPACE
-                            , @p_msg_desc           = 'Invalid pay group id'
-                            , @p_activity_status    = @v_ACTIVITY_STATUS_BAD
+                            , @p_msg_desc           = 'Invalid pay group id - defaulting to ''99999''.'
+                            , @p_activity_status    = @v_ACTIVITY_STATUS_WARNING
                             , @p_activity_date      = @p_activity_date
                             , @p_audit_id           = @aud_id
 
 
-                        SET @pay_group_id = ' '
 
-                        SET  @w_fatal_error = 1
+
+                        --SET  @w_fatal_error = 1
+                        SET @pay_group_id = '99999'
 
                     END
 

@@ -45,6 +45,8 @@ GO
                                                     1) Updated employer id validation to skip record if invalid
                                                         - default setting handled in usp_sel_employee_events
             06/18/2026  CJP                         2) Fixed emp_assignment update to use valid variables in where clause
+                                                    3) Added logic if pay group id is invalid, default to '99999'
+                                                    4) Added logic to update tax ceiling amount to DBShrpn..employee.user_monetary_amt_1
 
 ************************************************************************************/
 
@@ -822,12 +824,13 @@ BEGIN
                             , @p_pay_element_id     = @v_EMPTY_SPACE
                             , @p_msg_p1             = @emp_id
                             , @p_msg_p2             = @pay_group_id
-                            , @p_msg_desc           = 'Invalid pay group id - bypassing transfer.'
-                            , @p_activity_status    = @v_ACTIVITY_STATUS_BAD
+                            , @p_msg_desc           = 'Invalid pay group id - defaulting to ''99999''.'
+                            , @p_activity_status    = @v_ACTIVITY_STATUS_WARNING
                             , @p_activity_date      = @p_activity_date
                             , @p_audit_id           = @aud_id
 
-                        SET  @w_fatal_error = 1
+                        --SET  @w_fatal_error = 1
+                        SET @pay_group_id = '99999'  -- Default Pay Group
 
                     END
 
@@ -835,6 +838,7 @@ BEGIN
                 ---------------------------------------------------------------------------
                 -- Is Labor Group Code Valid
                 ---------------------------------------------------------------------------
+                -- cjp 6/18/2026
                 SET @msg_id = 'U00111'
                 SET @v_step_position = 'Begin ' + RTRIM(@msg_id)
 
@@ -1021,6 +1025,16 @@ BEGIN
                 JOIN DBShrpn.dbo.individual_personal ind ON
                     (emp.individual_id = ind.individual_id)
                 WHERE (emp.emp_id = @emp_id)
+
+
+                ---------------------------------------------------------------------------
+                -- GOSL update Tax Ceiling Amount
+                ---------------------------------------------------------------------------
+                SET @v_step_position = 'Update Tax Ceiling'
+
+                UPDATE DBShrpn.dbo.employee
+                SET user_monetary_amt_1 = @tax_ceiling_amt
+                WHERE (emp_id = @emp_id)
 
 
                 ---------------------------------------------------------------------------

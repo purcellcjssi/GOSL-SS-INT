@@ -59,6 +59,7 @@ GO
                                                         - default setting handled in usp_sel_employee_events
                                                     2) Removed unused import fields
             06/18/2026                              3) Fixed Labor Group update - emp_id was missing in where clause
+                                                    4) Added logic if pay group id is invalid, default to '99999'
 
 ************************************************************************************/
 
@@ -693,12 +694,13 @@ BEGIN
                             , @p_pay_element_id     = @v_EMPTY_SPACE
                             , @p_msg_p1             = @emp_id
                             , @p_msg_p2             = @pay_group_id
-                            , @p_msg_desc           = 'Invalid pay group id.'
+                            , @p_msg_desc           = 'Invalid pay group id - defaulting to ''99999''.'
                             , @p_activity_status    = @v_ACTIVITY_STATUS_BAD
                             , @p_activity_date      = @p_activity_date
                             , @p_audit_id           = @aud_id
 
-                        SET @w_fatal_error = 1
+                        --SET @w_fatal_error = 1
+                        SET @pay_group_id = '99999'  -- default pay group id if not found
 
                     END
 
