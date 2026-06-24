@@ -695,7 +695,7 @@ BEGIN
                             , @p_msg_p1             = @emp_id
                             , @p_msg_p2             = @pay_group_id
                             , @p_msg_desc           = 'Invalid pay group id - defaulting to ''99999''.'
-                            , @p_activity_status    = @v_ACTIVITY_STATUS_BAD
+                            , @p_activity_status    = @v_ACTIVITY_STATUS_WARNING
                             , @p_activity_date      = @p_activity_date
                             , @p_audit_id           = @aud_id
 
