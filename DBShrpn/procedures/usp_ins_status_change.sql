@@ -60,6 +60,7 @@ GO
                                                     2) Removed unused import fields
             06/18/2026                              3) Fixed Labor Group update - emp_id was missing in where clause
                                                     4) Added logic if pay group id is invalid, default to '99999'
+                                                    5) Disabled validation (U00036) for transfer date greater than position effective date since not applicable to GOSL
 
 ************************************************************************************/
 
@@ -587,6 +588,8 @@ BEGIN
 
                     END
 
+
+/*  NOT APPLICABLE TO GOSL
                 ---------------------------------------------------------------------------
                 -- Check to see if the transfer date is greater than position effective date.
                 ---------------------------------------------------------------------------
@@ -626,7 +629,7 @@ BEGIN
                         SET @w_fatal_error = 1
 
                     END
-
+*/
 
                 ---------------------------------------------------------------------------
                 -- Check to see if the rehire date is greater than employee employment effective date.
@@ -672,7 +675,7 @@ BEGIN
                 SET @v_step_position = 'Begin ' + RTRIM(@msg_id)
 
                 IF NOT EXISTS(
-                            SELECT *
+                            SELECT 1
                             FROM   DBShrpn.dbo.pay_group
                             WHERE   pay_group_id = @pay_group_id
                             )
@@ -701,6 +704,7 @@ BEGIN
 
                         --SET @w_fatal_error = 1
                         SET @pay_group_id = '99999'  -- default pay group id if not found
+
 
                     END
 
