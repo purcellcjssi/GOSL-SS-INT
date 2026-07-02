@@ -1,6 +1,14 @@
 USE [DBShrpn]
 GO
-/****** Object:  StoredProcedure [dbo].[usp_val_hepy_audit]    Script Date: 4/1/2025 4:33:00 PM ******/
+
+IF OBJECT_ID(N'dbo.usp_val_hepy_audit') IS NOT NULL
+BEGIN
+    DROP PROCEDURE dbo.usp_val_hepy_audit
+    IF OBJECT_ID(N'dbo.usp_val_hepy_audit') IS NOT NULL
+        PRINT N'<<< FAILED DROPPING PROCEDURE dbo.usp_val_hepy_audit >>>'
+    ELSE
+        PRINT N'<<< DROPPED PROCEDURE dbo.usp_val_hepy_audit >>>'
+END
 SET ANSI_NULLS OFF
 GO
 SET QUOTED_IDENTIFIER OFF
@@ -65,9 +73,15 @@ begin
     else
         return 2
 end
- 
 
- 
+
+
 GO
-ALTER AUTHORIZATION ON [dbo].[usp_val_hepy_audit] TO  SCHEMA OWNER 
+ALTER AUTHORIZATION ON [dbo].[usp_val_hepy_audit] TO  SCHEMA OWNER
+GO
+
+IF OBJECT_ID(N'dbo.usp_val_hepy_audit', N'P') IS NOT NULL
+    PRINT N'<<< CREATED PROCEDURE dbo.usp_val_hepy_audit >>>'
+ELSE
+    PRINT N'<<< FAILED CREATING PROCEDURE dbo.usp_val_hepy_audit >>>'
 GO
