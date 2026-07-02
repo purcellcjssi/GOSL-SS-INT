@@ -1,6 +1,15 @@
 USE [DBShrpn]
 GO
-/****** Object:  StoredProcedure [dbo].[usp_ins_hepy_insert]    Script Date: 4/1/2025 4:33:00 PM ******/
+
+IF OBJECT_ID(N'dbo.usp_ins_hepy_insert') IS NOT NULL
+BEGIN
+    DROP PROCEDURE dbo.usp_ins_hepy_insert
+    IF OBJECT_ID(N'dbo.usp_ins_hepy_insert') IS NOT NULL
+        PRINT N'<<< FAILED DROPPING PROCEDURE dbo.usp_ins_hepy_insert >>>'
+    ELSE
+        PRINT N'<<< DROPPED PROCEDURE dbo.usp_ins_hepy_insert >>>'
+END
+
 SET ANSI_NULLS OFF
 GO
 SET QUOTED_IDENTIFIER OFF
@@ -491,4 +500,10 @@ setandreturn:
 
 GO
 ALTER AUTHORIZATION ON [dbo].[usp_ins_hepy_insert] TO  SCHEMA OWNER
+GO
+
+IF OBJECT_ID(N'dbo.usp_ins_hepy_insert', N'P') IS NOT NULL
+    PRINT N'<<< CREATED PROCEDURE dbo.usp_ins_hepy_insert >>>'
+ELSE
+    PRINT N'<<< FAILED CREATING PROCEDURE dbo.usp_ins_hepy_insert >>>'
 GO

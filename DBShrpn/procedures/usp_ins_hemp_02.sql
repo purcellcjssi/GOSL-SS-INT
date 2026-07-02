@@ -1,6 +1,15 @@
 USE [DBShrpn]
 GO
-/****** Object:  StoredProcedure [dbo].[usp_ins_hemp_02]    Script Date: 4/1/2025 4:33:00 PM ******/
+
+IF OBJECT_ID(N'dbo.usp_ins_hemp_02') IS NOT NULL
+BEGIN
+    DROP PROCEDURE dbo.usp_ins_hemp_02
+    IF OBJECT_ID(N'dbo.usp_ins_hemp_02') IS NOT NULL
+        PRINT N'<<< FAILED DROPPING PROCEDURE dbo.usp_ins_hemp_02 >>>'
+    ELSE
+        PRINT N'<<< DROPPED PROCEDURE dbo.usp_ins_hemp_02 >>>'
+END
+
 SET ANSI_NULLS OFF
 GO
 SET QUOTED_IDENTIFIER OFF
@@ -37,7 +46,7 @@ as
 /*----------------------------------------------------------------------*/
 
 declare @ret int
---execute @ret = sp_dbs_authenticate if @ret != 0 return 
+--execute @ret = sp_dbs_authenticate if @ret != 0 return
 
 select @p_rc = 1
 
@@ -47,39 +56,39 @@ Declare @w_other_prov_tax_1_stat_code char(1),
         @w_provincial_basic_amt       money   /*R6.0M SSA 165213 */
        ,@w_hlth_ctrb_status_code      char(1) /* kb 1383272 - def 393072 */
 
-    
-if @p_employer_taxing_ctry_code = 'CA' 
-    if not exists (Select tax_authority_id 
+
+if @p_employer_taxing_ctry_code = 'CA'
+    if not exists (Select tax_authority_id
                    From empl_canadian_tax_authority
                    Where empl_id                     = @p_employer_id and
-                         tax_authority_id = 'CANFED' and 
-                         empl_can_tax_auth_status_cd = '1') 
+                         tax_authority_id = 'CANFED' and
+                         empl_can_tax_auth_status_cd = '1')
        Select @p_rc = 50438
     else
 /* ==================================================================== */
 /*   --  Insert the emp_can_tax_authority data                          */
 /* ==================================================================== */
     Begin
-/* R6.0.03 SSA 165213 Begin */   
-	if exists(Select inc_tax_basic_amt 
+/* R6.0.03 SSA 165213 Begin */
+	if exists(Select inc_tax_basic_amt
                   from canadian_standard_tax_credits
 		  where tax_authority_id  = 'CANFED')
          Begin
 		Select @w_fed_basic_amount = inc_tax_basic_amt
         	from canadian_standard_tax_credits
 		where tax_authority_id  = 'CANFED'
-         End 
+         End
 	else
                 Select @w_fed_basic_amount = 0
 
-	if exists(Select pit_basic_amt 
+	if exists(Select pit_basic_amt
                   from canadian_standard_tax_credits
 		  where tax_authority_id  = @p_tax_authority_id)
          Begin
  		Select @w_provincial_basic_amt = pit_basic_amt
 		from canadian_standard_tax_credits
 		where tax_authority_id  = @p_tax_authority_id
-         End 
+         End
 	else
 	          Select @w_provincial_basic_amt = 0
 
@@ -99,12 +108,12 @@ if @p_employer_taxing_ctry_code = 'CA'
     begin
      if @p_tax_authority_id = 'QC'
         Select @w_hlth_ctrb_status_code = '2'
-    end    
+    end
    /* kb 1383272 - def 393072 end */
 
  /*     @w_quebec_basic_amt = qit_basic_amt  			R6.0 SSA 165213 */
  /*       From canadian_standard_tax_credits			R6.0 SSA 165213 */
-/* R6.0.03 SSA 165213 End */ 
+/* R6.0.03 SSA 165213 End */
         Insert into emp_can_tax_authority
         (emp_id,
              empl_id,
@@ -168,8 +177,8 @@ if @p_employer_taxing_ctry_code = 'CA'
 	     /* R6.0M SSA 165213 new columns added to table */
              inc_tax_caregiver_amt,
 	     pit_disability_amt,
-             pit_transferred_amt,	
-             /* R6.0M SSA 165213 End */	
+             pit_transferred_amt,
+             /* R6.0M SSA 165213 End */
 	     chgstamp
              ,ppip_status_code /* 566986 */
              ,inc_tax_infirm_depn_amt        /* 585743 */
@@ -179,7 +188,7 @@ if @p_employer_taxing_ctry_code = 'CA'
              ,cpp_election_date         --1061321 [delivered in 2011 reg pack 1012803]
              ,prev_cpp_election_code    --1061321 [delivered in 2011 reg pack 1012803]
              ,prev_cpp_election_date    --1061321 [delivered in 2011 reg pack 1012803]
-			 ,rcv_pp_pension_ind        --1118754 def341775 
+			 ,rcv_pp_pension_ind        --1118754 def341775
   )
 
         values (@p_employee_id,
@@ -211,8 +220,8 @@ if @p_employer_taxing_ctry_code = 'CA'
              	/* R6.0M SSA 165213 new columns added to table */
              	0,
 	     	0,
-             	0,	
-             	/* R6.0M SSA 165213 End */	
+             	0,
+             	/* R6.0M SSA 165213 End */
 	     	0
              	,'1' /* @p_ppip_status_code = 1 for CANFED 566986 */
                 ,0   /* inc_tax_infirm_depn_amt         585743 */
@@ -222,19 +231,19 @@ if @p_employer_taxing_ctry_code = 'CA'
                 ,'12/31/2999'  --cpp_election_date      1061321 [delivered in 2011 reg pack 1012803]
                 ,'0'           --prev_cpp_election_code 1061321 [delivered in 2011 reg pack 1012803]
                 ,'12/31/2999'  --prev_cpp_election_date 1061321 [delivered in 2011 reg pack 1012803]
-				,'N'           --rcv_pp_pension_ind     1118754 def341775 
+				,'N'           --rcv_pp_pension_ind     1118754 def341775
              	)
 
-if @@error <> 0 
+if @@error <> 0
     Begin
         Select @p_rc       = 500014
         Select @p_ret_mess = 'Error on emp_can_tax_authority for FED'
 return
     End
 
-    if (rtrim(@p_tax_authority_id) IS NOT NULL AND rtrim(@p_tax_authority_id)!='')    
+    if (rtrim(@p_tax_authority_id) IS NOT NULL AND rtrim(@p_tax_authority_id)!='')
         Begin
-            if @p_tax_authority_id = 'QC' or @p_tax_authority_id = 'NT' or 
+            if @p_tax_authority_id = 'QC' or @p_tax_authority_id = 'NT' or
 			@p_tax_authority_id = 'NN'
                 Select @w_other_prov_tax_1_stat_code = '2'
             else
@@ -303,8 +312,8 @@ return
              /* R6.0M SSA 165213 new columns added to table */
              inc_tax_caregiver_amt,
 	     pit_disability_amt,
-             pit_transferred_amt,	
-             /* R6.0M SSA 165213 End */	   
+             pit_transferred_amt,
+             /* R6.0M SSA 165213 End */
              chgstamp
              ,ppip_status_code /* 566986 */
              ,inc_tax_infirm_depn_amt        /* 585743 */
@@ -348,8 +357,8 @@ return
              	/* R6.0M SSA 165213 new columns added to table */
              	0,
 	     	0,
-             	0,	
-             	/* R6.0M SSA 165213 End */	
+             	0,
+             	/* R6.0M SSA 165213 End */
              	0
              	,@p_ppip_status_code /* 566986 */
                 ,0   /* inc_tax_infirm_depn_amt         585743 */
@@ -365,7 +374,7 @@ return
         End
     End
 
-if @@error <> 0 
+if @@error <> 0
     Begin
         Select @p_rc       = 500015
         Select @p_ret_mess = 'Error on emp_can_tax_authority for Provincial'
@@ -373,7 +382,7 @@ return
     End
 
 
-if (rtrim(@p_autopay_pay_element_id) IS NOT NULL AND rtrim(@p_autopay_pay_element_id)!='')    and @p_autopay_rtn = 0 
+if (rtrim(@p_autopay_pay_element_id) IS NOT NULL AND rtrim(@p_autopay_pay_element_id)!='')    and @p_autopay_rtn = 0
    Begin
     insert into emp_pay_element
        (emp_id,
@@ -433,7 +442,7 @@ if (rtrim(@p_autopay_pay_element_id) IS NOT NULL AND rtrim(@p_autopay_pay_elemen
 	chgstamp,
 	first_roth_ctrb,                 /* r71m-578919 in 576240 */
         ira_sep_simple_ind,              /* r71m-581591 in 582025 */
-        taxable_amt_not_determined_ind)  /* r71m-581591 in 582025 */ 
+        taxable_amt_not_determined_ind)  /* r71m-581591 in 582025 */
 
        values (	@p_employee_id,
                	@p_employer_id,
@@ -454,9 +463,9 @@ if (rtrim(@p_autopay_pay_element_id) IS NOT NULL AND rtrim(@p_autopay_pay_elemen
 		'12/31/2999','12/31/2999',
     		'N','N',
 		' ',' ', 'N', ' ', ' ',' ',
-               	0, 
-                '12/31/2999',          /* r71m-578919 in 576240 */ 
-                'N','N')               /* r71m-581591 in 582025 */ 
+               	0,
+                '12/31/2999',          /* r71m-578919 in 576240 */
+                'N','N')               /* r71m-581591 in 582025 */
 
        Insert Into emp_pay_element_non_dtd
             (emp_id,
@@ -466,8 +475,8 @@ if (rtrim(@p_autopay_pay_element_id) IS NOT NULL AND rtrim(@p_autopay_pay_elemen
              recover_over_nbr_of_pay_pds,
              wh_status_code,
              calc_last_pay_pd_ind,
-             prenotification_check_date, 
-             prenotification_code, 
+             prenotification_check_date,
+             prenotification_code,
              chgstamp)
        Values(@p_employee_id,
               @p_employer_id,
@@ -477,7 +486,7 @@ if (rtrim(@p_autopay_pay_element_id) IS NOT NULL AND rtrim(@p_autopay_pay_elemen
 
     END
 
-if @@error <> 0 
+if @@error <> 0
     begin
         Select @p_rc       = 500013
         Select @p_ret_mess = 'Error on emp_pay_element'
@@ -494,38 +503,44 @@ Execute usp_ins_hemp_03 @p_employer_taxing_ctry_code,
                         @p_autopay_pay_element_id,
                         @p_cursor_rc    OUTPUT
 
-if @p_cursor_rc = -1 
+if @p_cursor_rc = -1
     Begin
         Select @p_rc       = 500016
         Select @p_ret_mess = 'Error on emp_pay_element'
         return
     End
 
-if exists (Select hpge.pay_element_id 
+if exists (Select hpge.pay_element_id
     From pay_element_ctrl_grp_entry hpge, pay_element hpay
     Where hpge.pay_element_ctrl_grp_id = @p_pay_element_ctrl_grp and
-          hpge.pay_element_id = hpay.pay_element_id and 
-          hpge.establish_on_hire_ind = 'Y' and 
-          hpay.start_date > @p_original_hire_date) 
-    Select @p_rc = 50433 
+          hpge.pay_element_id = hpay.pay_element_id and
+          hpge.establish_on_hire_ind = 'Y' and
+          hpay.start_date > @p_original_hire_date)
+    Select @p_rc = 50433
 
-if @p_employer_taxing_ctry_code = 'US' 
-    if @p_pensioner_indicator = 'N' 
-        if exists (Select hpge.pay_element_id 
+if @p_employer_taxing_ctry_code = 'US'
+    if @p_pensioner_indicator = 'N'
+        if exists (Select hpge.pay_element_id
             From pay_element_ctrl_grp_entry hpge, pay_element hpay
             Where hpge.pay_element_ctrl_grp_id = @p_pay_element_ctrl_grp and
-                  hpge.pay_element_id = hpay.pay_element_id and 
-                  hpge.establish_on_hire_ind = 'Y' and 
-                  hpay.pay_element_type_code = '1' and 
-                  hpay.earn_type_code = '6') 
+                  hpge.pay_element_id = hpay.pay_element_id and
+                  hpge.establish_on_hire_ind = 'Y' and
+                  hpay.pay_element_type_code = '1' and
+                  hpay.earn_type_code = '6')
             Select @p_rc       = 50435
 
-if @p_cursor_rc = 50436 
+if @p_cursor_rc = 50436
     Select @p_rc = @p_cursor_rc
 
- 
 
- 
+
+
 GO
-ALTER AUTHORIZATION ON [dbo].[usp_ins_hemp_02] TO  SCHEMA OWNER 
+ALTER AUTHORIZATION ON [dbo].[usp_ins_hemp_02] TO  SCHEMA OWNER
+GO
+
+IF OBJECT_ID(N'dbo.usp_ins_hemp_02', N'P') IS NOT NULL
+    PRINT N'<<< CREATED PROCEDURE dbo.usp_ins_hemp_02 >>>'
+ELSE
+    PRINT N'<<< FAILED CREATING PROCEDURE dbo.usp_ins_hemp_02 >>>'
 GO
