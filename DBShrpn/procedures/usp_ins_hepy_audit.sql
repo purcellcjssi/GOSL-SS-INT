@@ -1,6 +1,15 @@
 USE [DBShrpn]
 GO
-/****** Object:  StoredProcedure [dbo].[usp_ins_hepy_audit]    Script Date: 4/1/2025 4:33:00 PM ******/
+
+IF OBJECT_ID(N'dbo.usp_ins_hepy_audit') IS NOT NULL
+BEGIN
+    DROP PROCEDURE dbo.usp_ins_hepy_audit
+    IF OBJECT_ID(N'dbo.usp_ins_hepy_audit') IS NOT NULL
+        PRINT N'<<< FAILED DROPPING PROCEDURE dbo.usp_ins_hepy_audit >>>'
+    ELSE
+        PRINT N'<<< DROPPED PROCEDURE dbo.usp_ins_hepy_audit >>>'
+END
+
 SET ANSI_NULLS OFF
 GO
 SET QUOTED_IDENTIFIER OFF
@@ -142,7 +151,7 @@ begin
        @p_activity_action_code = 'POPTUNCDEL'  or
        @p_activity_action_code = 'PTCPLOANDL'  or
        @p_activity_action_code = 'PTCPCLAIMD'  or
-       @p_activity_action_code = 'POPTDELETE' 
+       @p_activity_action_code = 'POPTDELETE'
          begin
             insert into emp_pay_element_aud (ACTION_CODE, ACTION_USER,
                 ACTION_DATETIME, B_emp_id, B_empl_id, B_pay_element_id,
@@ -209,10 +218,10 @@ begin
 
     /* R7.0M-ALS#567582: Begin */
     /* Put this here because pay_element_pay_pd_sched_code   */
-    /* isn't passed and more than one row could be affected. */             
+    /* isn't passed and more than one row could be affected. */
     if @p_activity_action_code = 'EPHDELPMT'
          select @w_pay_elmt_pay_pd_sched_code = "11"
-    else 
+    else
          select @w_pay_elmt_pay_pd_sched_code = after.pay_element_pay_pd_sched_code
            from emp_pay_element after
           where after.emp_id          = @p_a_emp_id
@@ -227,7 +236,7 @@ begin
        @p_activity_action_code = 'REACTIVATE'  or
        @p_activity_action_code = 'CHGEMPPYNE'  or
        @p_activity_action_code = 'POPTCHGNE'   or
-       @p_activity_action_code = 'EPHDELPMT'      /* R7.0M-ALS#567582 */  
+       @p_activity_action_code = 'EPHDELPMT'      /* R7.0M-ALS#567582 */
         begin
             insert into emp_pay_element_aud
             select @p_activity_action_code, @p_user_id, @p_action_date,
@@ -301,7 +310,7 @@ begin
     /*  Insert where the before and after are essentially the same  */
     if @p_activity_action_code = 'PTCPUDPENX'  or  /* R6.5.02MCEXP-ALS#523706 */
        @p_activity_action_code = 'CHGVEREFF'   or
-       @p_activity_action_code = 'POPTCHGVER'  or 
+       @p_activity_action_code = 'POPTCHGVER'  or
        @p_activity_action_code = 'CHGSTARTDT'  or
        @p_activity_action_code = 'REVHIRE'     or
        @p_activity_action_code = 'REVREHIRE'   or
@@ -314,7 +323,7 @@ begin
        @p_activity_action_code = 'DELSTOPDT'   or  /* R6.5.03M-ALS#28859: missing */
        @p_activity_action_code = 'CHGSTOPDT'   or
        @p_activity_action_code = 'PTCPDELTRM'  or  /* R6.5.02MC-ALS#521145 */
-       @p_activity_action_code = 'ERXFERPESP'  
+       @p_activity_action_code = 'ERXFERPESP'
          begin
             insert into emp_pay_element_aud
             select @p_activity_action_code, @p_user_id, @p_action_date,
@@ -381,9 +390,14 @@ begin
            return
          end
 end
- 
 
- 
+
+
 GO
-ALTER AUTHORIZATION ON [dbo].[usp_ins_hepy_audit] TO  SCHEMA OWNER 
+ALTER AUTHORIZATION ON [dbo].[usp_ins_hepy_audit] TO  SCHEMA OWNER
+GO
+IF OBJECT_ID(N'dbo.usp_ins_hepy_audit', N'P') IS NOT NULL
+    PRINT N'<<< CREATED PROCEDURE dbo.usp_ins_hepy_audit >>>'
+ELSE
+    PRINT N'<<< FAILED CREATING PROCEDURE dbo.usp_ins_hepy_audit >>>'
 GO

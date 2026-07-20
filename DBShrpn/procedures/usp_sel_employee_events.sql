@@ -57,6 +57,13 @@ GO
    version  date        developer   SCR         description
    -------  ----------  ---------   -----       ------------------------------------
    1.0.00   08/27/2025  CJP                     - Cloned from GOG version
+   1.0.01   05/18/2026  CJP                     - Commit Error
+                                                    1) Left trimmed all text fields to eliminate string truncation errors
+                                                    2) Default all dates fields to '2999-12-31' if value is '9999-12-31'
+                                                    3) Added employer id blank validation
+                                                       - If blank then default employer id based on file source (SS VENUS vs SS GANYMEDE)
+            6/10/2026   CJP                         4) Added employee employment audit table inicator lookup
+                                                        - Used for labor group and pay group change events
 
 ************************************************************************************/
 
@@ -68,45 +75,49 @@ BEGIN
 
     SET NOCOUNT ON
 
-    DECLARE @v_step_position                varchar(255)        = 'Begin Procedure'
+    DECLARE @v_step_position                        varchar(255)        = 'Begin Procedure'
 
-    DECLARE @v_END_OF_TIME_DATE             datetime            = '29991231'
-    DECLARE @v_BAD_DATE_INDICATOR           datetime            = '99991231'    -- value used to populate datetime column with value from HCM that is not a valid date after conversion
-    DECLARE @v_EMPTY_SPACE                  char(01)            = ''
+    DECLARE @v_END_OF_TIME_DATE                     datetime            = '29991231'
+    DECLARE @v_BAD_DATE_INDICATOR                   datetime            = '99991231'    -- value used to populate datetime column with value from HCM that is not a valid date after conversion
+    DECLARE @v_EMPTY_SPACE                          char(01)            = ''
+    DECLARE @v_DEFAULT_EMPLOYER_ID_VENUS            char(10)            = 'HCM-00001'
+    DECLARE @v_DEFAULT_EMPLOYER_ID_GANYMEDE         char(10)            = '01HCM-0001'
 
-    DECLARE @ErrorNumber                    varchar(10)
-    DECLARE @ErrorMessage                   nvarchar(4000)
-    DECLARE @ErrorSeverity                  int
-    DECLARE @ErrorState                     int
-    DECLARE @v_ret_val                      int                 = 0
-    DECLARE @v_msg                          varchar(255)        = @v_EMPTY_SPACE
-    DECLARE @v_count                        int                 = 0
-    DECLARE @v_msg_id                         char(10)
 
-    DECLARE @v_event_id                     char(2)             = '00'
+    DECLARE @ErrorNumber                            varchar(10)
+    DECLARE @ErrorMessage                           nvarchar(4000)
+    DECLARE @ErrorSeverity                          int
+    DECLARE @ErrorState                             int
+    DECLARE @v_ret_val                              int                 = 0
+    DECLARE @v_msg                                  varchar(255)        = @v_EMPTY_SPACE
+    DECLARE @v_count                                int                 = 0
+    DECLARE @v_msg_id                               char(10)
 
-    DECLARE @v_PSC_BATCHNAME                char(08)            = 'GHR'
-    DECLARE @w_PSC_QUALIFIER                char(30)            = 'INTERFACES'
-    DECLARE @w_PSC_PSC_PGM_PARMS            varchar(255)        = 'GHR_EMPLOYEE_EVENTS'
+    DECLARE @v_event_id                             char(2)             = '00'
 
-    DECLARE @v_EVENT_ID_NEW_HIRE            char(2)             = '01'
-    DECLARE @v_EVENT_ID_SALARY_CHANGE       char(2)             = '02'
-    DECLARE @v_EVENT_ID_TRANSFER            char(2)             = '03'
-    DECLARE @v_EVENT_ID_NAME_CHANGE         char(2)             = '04'
-    DECLARE @v_EVENT_ID_STATUS_CHANGE       char(2)             = '05'
-    DECLARE @v_EVENT_ID_PAY_ELE             char(2)             = '06'
-    DECLARE @v_EVENT_ID_PAY_GROUP           char(2)             = '08'
-    DECLARE @v_EVENT_ID_LABOR_GROUP         char(2)             = '09'
-    DECLARE @v_EVENT_ID_POSITION_TITLE      char(2)             = '10'
+    DECLARE @v_PSC_BATCHNAME                        char(08)            = 'GHR'
+    DECLARE @w_PSC_QUALIFIER                        char(30)            = 'INTERFACES'
+    DECLARE @w_PSC_PSC_PGM_PARMS                    varchar(255)        = 'GHR_EMPLOYEE_EVENTS'
 
-    DECLARE @v_ACTIVITY_STATUS_GOOD         char(2)             = '00'
-    DECLARE @v_ACTIVITY_STATUS_BAD          char(2)             = '02'
-    --DECLARE @v_ACTIVITY_STATUS_UNPROCESSED  char(2)             = '99'
+    DECLARE @v_EVENT_ID_NEW_HIRE                    char(2)             = '01'
+    DECLARE @v_EVENT_ID_SALARY_CHANGE               char(2)             = '02'
+    DECLARE @v_EVENT_ID_TRANSFER                    char(2)             = '03'
+    DECLARE @v_EVENT_ID_NAME_CHANGE                 char(2)             = '04'
+    DECLARE @v_EVENT_ID_STATUS_CHANGE               char(2)             = '05'
+    DECLARE @v_EVENT_ID_PAY_ELE                     char(2)             = '06'
+    DECLARE @v_EVENT_ID_PAY_GROUP                   char(2)             = '08'
+    DECLARE @v_EVENT_ID_LABOR_GROUP                 char(2)             = '09'
+    DECLARE @v_EVENT_ID_POSITION_TITLE              char(2)             = '10'
 
-    DECLARE @w_activity_date	            datetime
-    DECLARE @w_status			            int
-    DECLARE @w_userid			            varchar(30)
+    DECLARE @v_ACTIVITY_STATUS_GOOD                 char(2)             = '00'
+    DECLARE @v_ACTIVITY_STATUS_WARNING              char(2)             = '01'
+    DECLARE @v_ACTIVITY_STATUS_BAD                  char(2)             = '02'
 
+
+    DECLARE @w_activity_date	                    datetime
+    DECLARE @w_status			                    int
+    DECLARE @w_userid			                    varchar(30)
+    DECLARE @w_eempl_audit_tbl_ind                  char(1)             = 'N'
 
 
     CREATE TABLE #ghr_employee_events_temp
@@ -147,7 +158,7 @@ BEGIN
     , tax_flag                              char(1)             NULL    -- individual_personal.user_ind_2
     , nic_flag                              char(1)             NULL    -- individual_personal.user_ind_1
     , tax_ceiling_amt                       char(15)            NULL    -- employee.user_monetary_amt_1
-    , labor_grp_code                        char(50)            NULL    -- DBShrpn..emp_employment.labor_grp_code   char(5)
+    , labor_grp_code                        char(05)            NULL    -- DBShrpn..emp_employment.labor_grp_code   char(5)
     , file_source                           char(50)            NULL    -- 'SS VENUS' or 'SS GANYMEDE'
     , annual_hrs_per_fte                    money               NULL    --varchar(255)        NULL
     , annual_rate                           money               NULL    --varchar(255)        NULL
@@ -188,6 +199,23 @@ BEGIN
         --SET @w_activity_status	= '00'
         -- Use date on bulkcopy step    SET @w_activity_date = CAST(CONVERT(CHAR(20),GETDATE(),120) as DATETIME)
 
+
+        ---------------------------------------------------------------------------
+        -- Determine if SmartStream Audit is Enabled for Employee Employment table
+        ---------------------------------------------------------------------------
+        SET @v_step_position = 'Lookup Employee Employment Audit Setting'
+
+        IF EXISTS (
+                       SELECT audit_ind
+                       FROM  hr_audit_ctrl
+                       WHERE (sybase_table_name     = 'emp_employment')
+                         AND (sybase_audit_tbl_name = 'emp_employment_aud')
+                         AND (bypass_audit_ind      = 'N')
+                         AND (audit_ind  = 'Y')
+                      )
+            SET @w_eempl_audit_tbl_ind = 'Y'
+
+
         ---------------------------------------------------------------------------
         ---------------------------------------------------------------------------
         -- Clear debug table
@@ -202,31 +230,86 @@ BEGIN
         SET @v_step_position = 'Insert INTO #ghr_employee_events_temp'
 
         INSERT INTO #ghr_employee_events_temp
+        (
+          event_id
+        , emp_id
+        , eff_date
+        , first_name
+        , first_middle_name
+        , last_name
+        , empl_id
+        , national_id_type_code
+        , national_id
+        , organization_group_id
+        , organization_chart_name
+        , organization_unit_name
+        , emp_status_classn_code
+        , position_title
+        , employment_type_code
+        , annual_salary_amt
+        , begin_date
+        , end_date
+        , pay_status_code
+        , pay_group_id
+        , pay_element_ctrl_grp_id
+        , time_reporting_meth_code
+        , employment_info_chg_reason_cd
+        , emp_location_code
+        , emp_status_code
+        , reason_code
+        , emp_expected_return_date
+        , pay_through_date
+        , emp_death_date
+        , consider_for_rehire_ind
+        , pay_element_id
+        , emp_calculation
+        , tax_flag
+        , nic_flag
+        , tax_ceiling_amt
+        , labor_grp_code
+        , file_source
+        , annual_hrs_per_fte
+        , annual_rate
+        , birth_date
+        , gender
+        , addr_fmt_code
+        , country_code
+        , addr_line_1
+        , addr_line_2
+        , addr_line_3
+        , addr_line_4
+        , city_name
+        , state_prov
+        , postal_code
+        , county_name
+        , region_name
+        , job_or_pos_id
+        )
         SELECT LEFT(t.event_id, 2) AS event_id
             , LEFT(t.emp_id, 15) AS emp_id
             , CASE
-                WHEN LEN(RTRIM(t.eff_date)) < 8 THEN @v_BAD_DATE_INDICATOR
+                WHEN (LEN(RTRIM(t.eff_date)) = 0) THEN @v_END_OF_TIME_DATE
                 ELSE COALESCE(TRY_CONVERT(datetime, t.eff_date), @v_BAD_DATE_INDICATOR)
               END AS eff_date
             , LEFT(t.first_name, 25) AS first_name
             , LEFT(t.first_middle_name, 25) AS first_middle_name
             , LEFT(t.last_name, 25) AS last_name
-            , UPPER(LEFT(t.empl_id, 15)) AS empl_id
+            , UPPER(LEFT(t.empl_id, 10)) AS empl_id
             , LEFT(t.national_id_type_code, 5) AS national_id_type_code
             , LEFT(t.national_id, 20) AS national_id
             , COALESCE(TRY_CONVERT(int, t.organization_group_id), 0) AS organization_group_id
-            , @v_EMPTY_SPACE AS organization_chart_name     -- t.organization_chart_name  -- wrong value
-            , @v_EMPTY_SPACE AS organization_unit_name      -- t.organization_unit_name
+            , @v_EMPTY_SPACE AS organization_chart_name
+            , @v_EMPTY_SPACE AS organization_unit_name
             , LEFT(t.emp_status_classn_code, 2) AS emp_status_classn_code
             , LEFT(t.position_title, 50) AS position_title    -- trim value since HCM sends it over as char(60)
             , LEFT(UPPER(t.employment_type_code), 70) AS employment_type_code
             , COALESCE(TRY_CONVERT(money, t.annual_salary_amt), 0.00) AS annual_salary_amt
             , CASE
-                WHEN LEN(RTRIM(t.begin_date)) < 8 THEN @v_BAD_DATE_INDICATOR
+                WHEN (LEN(RTRIM(t.begin_date)) = 0) THEN @v_END_OF_TIME_DATE
                 ELSE COALESCE(TRY_CONVERT(datetime, t.begin_date), @v_BAD_DATE_INDICATOR)
                 END AS begin_date
             , CASE
-                WHEN LEN(RTRIM(t.end_date)) < 8 THEN @v_BAD_DATE_INDICATOR
+                WHEN (LEN(RTRIM(t.end_date)) = 0) THEN @v_END_OF_TIME_DATE
                 ELSE COALESCE(TRY_CONVERT(datetime, t.end_date), @v_BAD_DATE_INDICATOR)
                 END AS end_date
             , LEFT(t.pay_status_code, 1) AS pay_status_code
@@ -237,27 +320,30 @@ BEGIN
             , LEFT(t.emp_location_code, 10) AS emp_location_code
             , LEFT(t.emp_status_code, 2) AS emp_status_code
             , LEFT(t.reason_code, 5) AS reason_code
-            , t.emp_expected_return_date
             , CASE
-                WHEN LEN(RTRIM(t.pay_through_date)) < 8 THEN @v_BAD_DATE_INDICATOR
+                WHEN (LEN(RTRIM(t.emp_expected_return_date)) = 0) THEN @v_END_OF_TIME_DATE
+                ELSE COALESCE(TRY_CONVERT(datetime, t.emp_expected_return_date), @v_BAD_DATE_INDICATOR)
+              END AS emp_expected_return_date
+            , CASE
+                WHEN (LEN(RTRIM(t.pay_through_date)) = 0) THEN @v_END_OF_TIME_DATE
                 ELSE COALESCE(TRY_CONVERT(datetime, t.pay_through_date), @v_BAD_DATE_INDICATOR)
               END AS pay_through_date
             , CASE
-                WHEN LEN(RTRIM(t.emp_death_date)) < 8 THEN @v_BAD_DATE_INDICATOR
+                WHEN (LEN(RTRIM(t.emp_death_date)) = 0) THEN @v_END_OF_TIME_DATE
                 ELSE COALESCE(TRY_CONVERT(datetime, t.emp_death_date), @v_BAD_DATE_INDICATOR)
               END AS emp_death_date
             , LEFT(t.consider_for_rehire_ind, 1) AS consider_for_rehire_ind
             , UPPER(LEFT(t.pay_element_id, 10)) AS pay_element_id
             , COALESCE(TRY_CONVERT(money, t.emp_calculation), 0.00) AS emp_calculation
-            , LEFT(t.tax_flag, 1) AS tax_flag        -- CASE t.tax_flag WHEN '1' THEN 'Y' WHEN '0' THEN 'N' ELSE tax_flag END tax_flag
-            , LEFT(t.nic_flag, 1) AS nic_flag        -- CASE t.nic_flag WHEN '1' THEN 'Y' WHEN '0' THEN 'N' ELSE nic_flag END nic_flag
+            , LEFT(t.tax_flag, 1) AS tax_flag
+            , LEFT(t.nic_flag, 1) AS nic_flag
             , COALESCE(TRY_CONVERT(money, t.tax_ceiling_amt), 0.00) AS tax_ceiling_amt
-            , LEFT(t.labor_grp_code, 50) AS labor_grp_code
+            , LEFT(t.labor_grp_code, 5) AS labor_grp_code
             , LEFT(t.file_source, 50) AS file_source
             , COALESCE(TRY_CONVERT(money, t.annual_hrs_per_fte), 0.00) AS annual_hrs_per_fte
             , COALESCE(TRY_CONVERT(money, t.annual_rate), 0.00) AS annual_rate
             , CASE
-                WHEN LEN(RTRIM(t.birth_date)) < 8 THEN @v_BAD_DATE_INDICATOR
+                WHEN (LEN(RTRIM(t.birth_date)) = 0) THEN @v_END_OF_TIME_DATE
                 ELSE COALESCE(TRY_CONVERT(datetime, t.birth_date), @v_BAD_DATE_INDICATOR)
               END AS birth_date
             , LEFT(t.gender, 1) AS gender
@@ -273,7 +359,6 @@ BEGIN
             , LEFT(t.county_name, 255) AS county_name
             , LEFT(t.region_name, 255) AS region_name
             , DBShrpn.dbo.ufn_ret_job_or_pos_id(t.file_source, t.empl_id) AS job_or_pos_id
-
         FROM DBShrpn.dbo.ghr_employee_events t
         --WHERE (t.event_id <> @v_EVENT_ID_SALARY_CHANGE)  -- Exclude Salary Changes
 
@@ -288,6 +373,37 @@ BEGIN
         SET emp_id = STUFF(emp_id, 1, 1, 'D')
         WHERE (file_source = 'SS GANYMEDE')
           AND (CHARINDEX('4', emp_id, 1) = 1)
+
+
+        ---------------------------------------------------------------------------
+        -- Log Records with Blank Employer ID defaulting for records with missing employer id
+        ---------------------------------------------------------------------------
+        SET @v_step_position = 'Log Employer ID defaulting for records with missing employer id'
+
+        INSERT INTO DBShrpn.dbo.ghr_historical_message
+        SELECT 'U00039' AS msg_id
+            , t.event_id
+            , t.emp_id
+            , t.eff_date
+            , t.pay_element_id
+            , @v_EMPTY_SPACE AS msg_p1
+            , @v_EMPTY_SPACE AS msg_p2
+            , 'Employer ID is blank - defaulting to employer ' + CASE t.file_source WHEN 'SS VENUS' THEN @v_DEFAULT_EMPLOYER_ID_VENUS ELSE @v_DEFAULT_EMPLOYER_ID_GANYMEDE END AS msg_desc
+            , @v_ACTIVITY_STATUS_WARNING AS activity_status
+            , @w_activity_date AS activity_date
+            , t.aud_id
+        FROM #ghr_employee_events_temp t
+        WHERE (LEN(RTRIM(t.empl_id)) = 0)
+
+        -- Update the blank employer id to default value based on file source
+        UPDATE #ghr_employee_events_temp
+        SET empl_id = CASE file_source
+                         WHEN 'SS VENUS' THEN @v_DEFAULT_EMPLOYER_ID_VENUS
+                         ELSE @v_DEFAULT_EMPLOYER_ID_GANYMEDE
+                       END
+        WHERE (LEN(RTRIM(empl_id)) = 0)
+
+
 
 
         ---------------------------------------------------------------------------
@@ -309,7 +425,7 @@ BEGIN
             , t.organization_chart_name
             , t.organization_unit_name
             , t.emp_status_classn_code
-            , LEFT(t.position_title, 50) AS position_title    -- trim value since HCM sends it over as char(60)
+            , t.position_title
             , t.employment_type_code
             , t.annual_salary_amt
             , t.begin_date
@@ -348,15 +464,12 @@ BEGIN
             , t.postal_code
             , t.county_name
             , t.region_name
-            , DBShrpn.dbo.ufn_ret_job_or_pos_id(t.file_source, t.empl_id) AS job_or_pos_id
+            , t.job_or_pos_id
             , @w_activity_date                                              AS activity_date
             , t.aud_id
             , @w_userid                                                     AS activity_user
             , 'N'                                                           AS proc_flag
         FROM #ghr_employee_events_temp t
-
-
-
 
 
         ---------------------------------------------------------------------------
@@ -606,10 +719,11 @@ BEGIN
                    )
         BEGIN
             EXEC @w_status = DBShrpn.dbo.usp_ins_pay_group
-                        @p_user_id         = @w_userid
-                      , @p_batchname       = @v_PSC_BATCHNAME
-                      , @p_qualifier       = @w_PSC_QUALIFIER
-                      , @p_activity_date   = @w_activity_date
+                        @p_user_id             = @w_userid
+                      , @p_batchname           = @v_PSC_BATCHNAME
+                      , @p_qualifier           = @w_PSC_QUALIFIER
+                      , @p_activity_date       = @w_activity_date
+                      , @p_eempl_audit_tbl_ind = @w_eempl_audit_tbl_ind
 
             -- Log error if return code is not zero
             IF (@w_status <> 0)
@@ -648,10 +762,11 @@ BEGIN
                    )
         BEGIN
             EXEC @w_status = DBShrpn.dbo.usp_ins_labor_group
-                        @p_user_id         = @w_userid
-                      , @p_batchname       = @v_PSC_BATCHNAME
-                      , @p_qualifier       = @w_PSC_QUALIFIER
-                      , @p_activity_date   = @w_activity_date
+                        @p_user_id             = @w_userid
+                      , @p_batchname           = @v_PSC_BATCHNAME
+                      , @p_qualifier           = @w_PSC_QUALIFIER
+                      , @p_activity_date       = @w_activity_date
+                      , @p_eempl_audit_tbl_ind = @w_eempl_audit_tbl_ind
 
             -- Log error if return code is not zero
             IF (@w_status <> 0)

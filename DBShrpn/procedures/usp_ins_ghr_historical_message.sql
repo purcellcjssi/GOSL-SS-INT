@@ -55,7 +55,9 @@ GO
    1.0.00   08/27/2025  CJP                     - Created
             01/20/2026                          - Changed param @p_eff_date to datetime from char(10)
             03/04/2026                          - Made the parameters with default blank value optional
-   1.0.01   5/15/2026   CJP                     - Changed parameter @p_audit_id from char(02) to int and default value to 0
+   1.0.01   5/15/2026   CJP                     - Commit Error
+                                                    1) Changed parameter @p_audit_id from char(02) to int and default value to 0
+                                                    2) If effective date is null, then default to '12/31/2999' in the insert statement
 
 ************************************************************************************/
 
@@ -84,7 +86,7 @@ BEGIN
       @p_msg_id
     , @p_event_id
     , @p_emp_id
-    , @p_eff_date
+    , ISNULL(@p_eff_date, '12/31/2999')
     , @p_pay_element_id
     , @p_msg_p1
     , @p_msg_p2

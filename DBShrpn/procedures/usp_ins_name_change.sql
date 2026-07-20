@@ -164,7 +164,7 @@ BEGIN
             , @first_name
             , @first_middle_name
             , @last_name
-            , @empl_id
+            , @empl_id  -- need?
             , @tax_flag
             , @nic_flag
             , @tax_ceiling_amt

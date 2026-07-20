@@ -41,6 +41,12 @@ GO
    version  date        developer   SCR         description
    -------  ----------  ---------   -----       ------------------------------------
    1.0.00   08/27/2025  CJP                     - Cloned from GOG version
+   1.0.01   05/18/2026  CJP                     - Commit Error
+                                                    1) Updated employer id validation to skip record if invalid
+                                                        - default setting handled in usp_sel_employee_events
+            06/18/2026  CJP                         2) Fixed emp_assignment update to use valid variables in where clause
+                                                    3) Added logic if pay group id is invalid, default to '99999'
+                                                    4) Added logic to update tax ceiling amount to DBShrpn..employee.user_monetary_amt_1
 
 ************************************************************************************/
 
@@ -86,13 +92,14 @@ BEGIN
     DECLARE @w_msg_text_3                               varchar(255)
     DECLARE @w_severity_cd                              tinyint
     DECLARE @w_fatal_error                              bit                 = 0
+    DECLARE @w_ASSIGNED_TO_CODE                         char(01)        = 'P'
 
     DECLARE @rehire_override                            bit
     DECLARE @maxx                                       char(06)
 
     DECLARE @new_annual_salary_amt    money
 
-
+/*
     DECLARE @new_emp_asgn_assigned_to_code              char(01)
     DECLARE @new_emp_asgn_job_or_pos_id                 char(10)
     DECLARE @new_emp_asgn_eff_date                      datetime
@@ -106,7 +113,7 @@ BEGIN
     DECLARE @new_emp_asgn_base_rate_tbl_id              char(10)
     DECLARE @new_emp_asgn_base_rate_tbl_entry_code      char(08)
     DECLARE @new_emp_asgn_pd_salary_tm_pd_id            char(05)
-
+*/
 
     DECLARE @cur_ea_assigned_to_code                    char(01)
     DECLARE @cur_ea_job_or_pos_id                       char(10)
@@ -616,15 +623,7 @@ BEGIN
                             WHERE empl_id = @empl_id
                             )
                 BEGIN
-                    IF EXISTS (
-                            SELECT 1
-                            FROM DBShrpn.dbo.employer
-                            WHERE empl_id = '0' + @empl_id
-                            )
-                        -- Add leading zero to employer id - lost on bulkcopy??? -- Do we need this for GOSL????
-                        SELECT @empl_id   = '0' + @empl_id
-                    ELSE
-                        BEGIN
+
 
                             SET @msg_id = 'U00039'
                             SET @v_step_position = 'Validation - ' + RTRIM(@msg_id)
@@ -653,7 +652,7 @@ BEGIN
 
                             SET @w_fatal_error = 1
 
-                        END
+
                 END
 
                 ---------------------------------------------------------------------------
@@ -662,104 +661,79 @@ BEGIN
                 IF (@cur_empl_id = @empl_id)
                     BEGIN
 
-                        -- If salary Change Record Exists in this run, bypass transfer record
-                        -- NEED TO UPDATE THIS LOGIC SINCE GOSL WILL NOT INTERFACE IN SALARY
-                        -- IF EXISTS (
-                        --            SELECT 1
-                        --            FROM #ghr_employee_events_temp
-                        --            WHERE emp_id   = @emp_id
-                        --              AND event_id = @v_EVENT_ID_SALARY_CHANGE
-                        --           )
-                        --     BEGIN
-                        --         UPDATE DBShrpn.dbo.ghr_employee_events_aud
-                        --         SET activity_status = @v_ACTIVITY_STATUS_WARNING
-                        --         WHERE emp_id = @emp_id
-                        --           AND activity_date = @p_activity_date
-                        --           AND event_id = @v_EVENT_ID_TRANSFER
+                        SET @msg_id = 'U00034'
+                        SET @v_step_position = 'Validation - ' + RTRIM(@msg_id)
 
-                        --         --CJP 8/6/2025 set skip flag instead of jumping to GOTO BYPASS_EMPLOYEE
-                        --         SET @w_fatal_error = 1
-                        --     END
-                        -- ELSE
-                            --BEGIN
-                                SET @msg_id = 'U00034'
-                                SET @v_step_position = 'Validation - ' + RTRIM(@msg_id)
+                        INSERT INTO #tbl_ghr_msg
+                        SELECT @msg_id As msg_id
+                            , REPLACE(REPLACE(t.msg_text, '@1', @empl_id), '@2', @emp_id) AS msg_desc
+                        FROM DBSCOMMON.dbo.message_master t
+                        WHERE (t.msg_id = @msg_id)
 
-                                INSERT INTO #tbl_ghr_msg
-                                SELECT @msg_id As msg_id
-                                    , REPLACE(REPLACE(t.msg_text, '@1', @empl_id), '@2', @emp_id) AS msg_desc
-                                FROM DBSCOMMON.dbo.message_master t
-                                WHERE (t.msg_id = @msg_id)
+                        -- Historical Message for reporting purpose
+                        EXEC DBShrpn.dbo.usp_ins_ghr_historical_message
+                            @p_msg_id             = @msg_id
+                            , @p_event_id           = @v_EVENT_ID_TRANSFER
+                            , @p_emp_id             = @emp_id
+                            , @p_eff_date           = @eff_date
+                            , @p_pay_element_id     = @v_EMPTY_SPACE
+                            , @p_msg_p1             = @empl_id
+                            , @p_msg_p2             = @cur_empl_id
+                            , @p_msg_desc           = 'Cannot transfer an employee to the same employer.'
+                            , @p_activity_status    = @v_ACTIVITY_STATUS_BAD
+                            , @p_activity_date      = @p_activity_date
+                            , @p_audit_id           = @aud_id
 
-                                -- Historical Message for reporting purpose
-                                EXEC DBShrpn.dbo.usp_ins_ghr_historical_message
-                                    @p_msg_id             = @msg_id
-                                    , @p_event_id           = @v_EVENT_ID_TRANSFER
-                                    , @p_emp_id             = @emp_id
-                                    , @p_eff_date           = @eff_date
-                                    , @p_pay_element_id     = @v_EMPTY_SPACE
-                                    , @p_msg_p1             = @empl_id
-                                    , @p_msg_p2             = @cur_empl_id
-                                    , @p_msg_desc           = 'Cannot transfer an employee to the same employer.'
-                                    , @p_activity_status    = @v_ACTIVITY_STATUS_BAD
-                                    , @p_activity_date      = @p_activity_date
-                                    , @p_audit_id           = @aud_id
-
-                                SET @w_fatal_error = 1
-                            --END
+                        SET @w_fatal_error = 1
 
                     END
 
-/*
+
                 ---------------------------------------------------------------------------
-                -- Check to see if the employee is getting transfer to pensioner employer
+                -- Lookup new employer/tax entity details
                 ---------------------------------------------------------------------------
-                IF EXISTS(
-                        SELECT 1
-                        FROM DBShrpn.dbo.employer
-                        WHERE empl_id = @empl_id
-                            AND (name LIKE 'Pen%')
-                        )
-                    BEGIN
-                        SET @msg_id = 'U00044'
-                        SET @v_step_position = 'Validation - ' + RTRIM(@msg_id)
+                SET @v_step_position = 'Lookup New Employer/Tax Entity'
 
-                        IF (@rehire_override = 0)
-                            BEGIN
+                SELECT @new_taxing_country_code = empl.taxing_country_code
+                    , @new_curr_code           = empl.curr_code
+                    , @new_tax_entity          = tax_entity_id
+                FROM DBShrpn.dbo.employer empl
+                JOIN DBShrpn.dbo.empl_tax_entity ete ON
+                    (empl.empl_id = ete.empl_id)
+                WHERE (empl.empl_id = @empl_id)
 
-                                INSERT INTO #tbl_ghr_msg
-                                SELECT @msg_id As msg_id
-                                    , REPLACE(t.msg_text, '@1', @emp_id) AS msg_desc
-                                FROM #tbl_msg_master t
-                                WHERE (msg_id = @msg_id)
+                IF (@@ROWCOUNT = 0)
+                BEGIN
 
-                                -- Historical Message for reporting purpose
-                                EXEC DBShrpn.dbo.usp_ins_ghr_historical_message
-                                    @p_msg_id             = @msg_id
-                                    , @p_event_id           = @v_EVENT_ID_TRANSFER
-                                    , @p_emp_id             = @emp_id
-                                    , @p_eff_date           = @eff_date
-                                    , @p_pay_element_id     = @v_EMPTY_SPACE
-                                    , @p_msg_p1             = @empl_id
-                                    , @p_msg_p2             = @v_EMPTY_SPACE
-                                    , @p_msg_desc           = 'Cannot transfer an employee to a pensioner employer'
-                                    , @p_activity_status    = @v_ACTIVITY_STATUS_BAD
-                                    , @p_activity_date      = @p_activity_date
-                                    , @p_audit_id           = @aud_id
+                    SET @msg_id = 'U00127'
+                    SET @v_step_position = 'Validation - ' + RTRIM(@msg_id)
 
-                                SET @w_fatal_error = 1
-                            END
-                        ELSE
-                            BEGIN
-                                UPDATE DBShrpn.dbo.ghr_employee_events_aud
-                                SET activity_status = @v_ACTIVITY_STATUS_WARNING
-                                WHERE activity_date = @p_activity_date
-                                    AND emp_id = @emp_id
-                                    AND event_id = @v_EVENT_ID_TRANSFER
-                            END
+
+                    INSERT INTO #tbl_ghr_msg
+                    SELECT @msg_id AS msg_id
+                        , REPLACE(REPLACE(t.msg_text, '@1', RTRIM(@empl_id)), '@2', RTRIM(@emp_id)) AS msg_desc
+                    FROM DBSCOMMON.dbo.message_master t
+                    WHERE (t.msg_id = @msg_id)
+
+                    SET @w_msg_text = 'New employer, ' + @empl_id + ', does not have an associated tax entity. Employee cannot be transferred.'
+
+                    -- Historical Message for reporting purpose
+                    EXEC DBShrpn.dbo.usp_ins_ghr_historical_message
+                        @p_msg_id             = @msg_id
+                        , @p_event_id           = @v_EVENT_ID_TRANSFER
+                        , @p_emp_id             = @emp_id
+                        , @p_eff_date           = @eff_date
+                        , @p_pay_element_id     = @v_EMPTY_SPACE
+                        , @p_msg_p1             = @v_EMPTY_SPACE
+                        , @p_msg_p2             = @v_EMPTY_SPACE
+                        , @p_msg_desc           = @w_msg_text
+                        , @p_activity_status    = @v_ACTIVITY_STATUS_BAD
+                        , @p_activity_date      = @p_activity_date
+                        , @p_audit_id           = @aud_id
+
+                    SET @w_fatal_error = 1
 
                 END
-*/
 
 
                 ---------------------------------------------------------------------------
@@ -808,7 +782,7 @@ BEGIN
                                     , @p_pay_element_id     = @v_EMPTY_SPACE
                                     , @p_msg_p1             = @cur_emp_status_code
                                     , @p_msg_p2             = @v_EMPTY_SPACE
-                                    , @p_msg_desc           = 'Terminated employee is a rehire in current extract - bypassing transfer.'
+                                    , @p_msg_desc           = 'Terminated employee contains a rehire change event in current extract - bypassing transfer.'
                                     , @p_activity_status    = @v_ACTIVITY_STATUS_BAD
                                     , @p_activity_date      = @p_activity_date
                                     , @p_audit_id           = @aud_id
@@ -820,6 +794,90 @@ BEGIN
                     END
 
 
+                ---------------------------------------------------------------------------
+                -- Check to see if new pay group id exists
+                ---------------------------------------------------------------------------
+                -- Added 6/18/2026
+                SET @msg_id = 'U00020'
+                SET @v_step_position = 'Begin ' + RTRIM(@msg_id)
+
+                IF NOT EXISTS(
+                            SELECT 1
+                            FROM DBShrpn.dbo.pay_group
+                            WHERE (pay_group_id = @pay_group_id)
+                            )
+                    BEGIN
+
+                        INSERT INTO #tbl_ghr_msg
+                        SELECT @msg_id As msg_id
+                            , REPLACE(REPLACE(t.msg_text, '@1', @pay_group_id), '@2', @emp_id) AS msg_desc
+                        FROM DBSCOMMON.dbo.message_master t
+                        WHERE (t.msg_id = @msg_id)
+
+
+                        -- Historical Message for reporting purpose
+                        EXEC DBShrpn.dbo.usp_ins_ghr_historical_message
+                            @p_msg_id             = @msg_id
+                            , @p_event_id           = @v_EVENT_ID_TRANSFER
+                            , @p_emp_id             = @emp_id
+                            , @p_eff_date           = @eff_date
+                            , @p_pay_element_id     = @v_EMPTY_SPACE
+                            , @p_msg_p1             = @emp_id
+                            , @p_msg_p2             = @pay_group_id
+                            , @p_msg_desc           = 'Invalid pay group id - defaulting to ''99999''.'
+                            , @p_activity_status    = @v_ACTIVITY_STATUS_WARNING
+                            , @p_activity_date      = @p_activity_date
+                            , @p_audit_id           = @aud_id
+
+                        --SET  @w_fatal_error = 1
+                        SET @pay_group_id = '99999'  -- Default Pay Group
+
+                    END
+
+
+                ---------------------------------------------------------------------------
+                -- Is Labor Group Code Valid
+                ---------------------------------------------------------------------------
+                -- cjp 6/18/2026
+                SET @msg_id = 'U00111'
+                SET @v_step_position = 'Begin ' + RTRIM(@msg_id)
+
+                IF NOT EXISTS(
+                            SELECT 1
+                            FROM DBShrpn.dbo.code_entry_policy
+                            WHERE (code_tbl_id = '10204')   -- 'Labor Group' code table id
+                            and (code_value = @labor_grp_code)
+                            )
+                    BEGIN
+
+                        INSERT INTO #tbl_ghr_msg
+                        SELECT @msg_id As msg_id
+                            , REPLACE(REPLACE(msg_text, '@1', @labor_grp_code), '@2', @emp_id) AS msg_desc
+                        FROM DBSCOMMON.dbo.message_master
+                        WHERE (msg_id = @msg_id)
+
+
+                        -- Historical Message for reporting purpose
+                        EXEC DBShrpn.dbo.usp_ins_ghr_historical_message
+                            @p_msg_id             = @msg_id
+                            , @p_event_id           = @v_EVENT_ID_TRANSFER
+                            , @p_emp_id             = @emp_id
+                            , @p_eff_date           = @eff_date
+                            , @p_pay_element_id     = @v_EMPTY_SPACE
+                            , @p_msg_p1             = @labor_grp_code
+                            , @p_msg_p2             = @v_EMPTY_SPACE
+                            , @p_msg_desc           = 'Invalid labor group code - bypassing transfer.'
+                            , @p_activity_status    = @v_ACTIVITY_STATUS_BAD
+                            , @p_activity_date      = @p_activity_date
+                            , @p_audit_id           = @aud_id
+
+                        SET  @w_fatal_error = 1
+
+                    END
+
+
+
+
                 IF (@w_fatal_error = 1)
                     GOTO BYPASS_EMPLOYEE
 
@@ -828,18 +886,6 @@ BEGIN
 
 
 
-                ---------------------------------------------------------------------------
-                -- Lookup new employer/tax entity details
-                ---------------------------------------------------------------------------
-                SET @v_step_position = 'Lookup New Employer/Tax Entity'
-
-                SELECT @new_taxing_country_code = empl.taxing_country_code
-                    , @new_curr_code           = empl.curr_code
-                    , @new_tax_entity          = tax_entity_id
-                FROM DBShrpn.dbo.employer empl
-                JOIN DBShrpn.dbo.empl_tax_entity ete ON
-                    (empl.empl_id = ete.empl_id)
-                WHERE (empl.empl_id = @empl_id)
 
 
                 ---------------------------------------------------------------------------
@@ -951,9 +997,9 @@ BEGIN
                   , user_text_1                 = @cur_ea_user_text_1
                   , user_text_2                 = @position_title
                 WHERE   (emp_id           = @emp_id)
-                    AND (assigned_to_code = @new_emp_asgn_assigned_to_code)
-                    AND (job_or_pos_id    = @new_emp_asgn_job_or_pos_id)
-                    AND (eff_date         = @new_emp_asgn_eff_date)
+                    AND (assigned_to_code = @w_ASSIGNED_TO_CODE)    -- cjp 6/18/2026
+                    AND (job_or_pos_id    = @job_or_pos_id)         -- cjp 6/18/2026
+                    AND (eff_date         = @eff_date)              -- cjp 6/18/2026
 
 
                 ---------------------------------------------------------------------------
@@ -962,7 +1008,8 @@ BEGIN
                 -- update latest emp employment record with labor group code
                 UPDATE DBShrpn.dbo.emp_employment
                 SET labor_grp_code = @labor_grp_code
-                WHERE (next_eff_date = @v_END_OF_TIME_DATE)
+                WHERE (emp_id        = @emp_id)     -- cjp 6/18/2026 - missing emp_id in where clause
+                  AND (next_eff_date = @v_END_OF_TIME_DATE)
 
 
                 ---------------------------------------------------------------------------
@@ -978,6 +1025,16 @@ BEGIN
                 JOIN DBShrpn.dbo.individual_personal ind ON
                     (emp.individual_id = ind.individual_id)
                 WHERE (emp.emp_id = @emp_id)
+
+
+                ---------------------------------------------------------------------------
+                -- GOSL update Tax Ceiling Amount
+                ---------------------------------------------------------------------------
+                SET @v_step_position = 'Update Tax Ceiling'
+
+                UPDATE DBShrpn.dbo.employee
+                SET user_monetary_amt_1 = @tax_ceiling_amt
+                WHERE (emp_id = @emp_id)
 
 
                 ---------------------------------------------------------------------------

@@ -1,6 +1,15 @@
 USE [DBShrpn]
 GO
 
+IF OBJECT_ID(N'dbo.usp_ins_hemp') IS NOT NULL
+BEGIN
+    DROP PROCEDURE dbo.usp_ins_hemp
+    IF OBJECT_ID(N'dbo.usp_ins_hemp') IS NOT NULL
+        PRINT N'<<< FAILED DROPPING PROCEDURE dbo.usp_ins_hemp >>>'
+    ELSE
+        PRINT N'<<< DROPPED PROCEDURE dbo.usp_ins_hemp >>>'
+END
+
 SET ANSI_NULLS OFF
 GO
 SET QUOTED_IDENTIFIER OFF
@@ -2416,7 +2425,7 @@ if @p_employer_taxing_ctry_code = 'US'
 Declare @p_rc       int,
         @p_ret_mess varchar(50)
 
-Execute usp_ins_hemp_02     @p_employer_taxing_ctry_code,
+Execute usp_ins_hemp     @p_employer_taxing_ctry_code,
                             @p_employer_id,
                             @p_employee_id,
                             @p_income_tax_stat_code,
@@ -2540,4 +2549,10 @@ commit transaction
 
 GO
 ALTER AUTHORIZATION ON [dbo].[usp_ins_hemp] TO  SCHEMA OWNER
+GO
+
+IF OBJECT_ID(N'dbo.usp_ins_hemp', N'P') IS NOT NULL
+    PRINT N'<<< CREATED PROCEDURE dbo.usp_ins_hemp >>>'
+ELSE
+    PRINT N'<<< FAILED CREATING PROCEDURE dbo.usp_ins_hemp >>>'
 GO

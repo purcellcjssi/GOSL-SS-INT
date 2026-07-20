@@ -41,6 +41,10 @@ GO
    version  date        developer   SCR         description
    -------  ----------  ---------   -----       ------------------------------------
    1.0.00   08/27/2025  CJP                     - Cloned from GOG version
+   1.0.01   05/18/2026  CJP                     - Commit Error
+                                                    1) Updated employer id validation to skip record if invalid
+                                                        - default setting handled in usp_sel_employee_events
+            06/18/2026  CJP                         3) Added logic if pay group id is invalid, default to '99999'
 
 ************************************************************************************/
 
@@ -280,7 +284,7 @@ BEGIN
              , t.organization_chart_name
              , t.organization_unit_name
              , t.emp_status_classn_code
-             , LEFT(t.position_title, 50) AS position_title
+             , t.position_title
              , t.employment_type_code
              , t.annual_salary_amt
              , t.pay_group_id
@@ -430,39 +434,30 @@ BEGIN
                         SET @msg_id = 'U00005'
                         SET @v_step_position = 'Validation -  ' + RTRIM(@msg_id)
 
-                        IF EXISTS (
-                                    SELECT *
-                                    FROM DBShrpn.dbo.employer
-                                    WHERE empl_id = '0' + @empl_id
-                                    )
-                            SELECT @empl_id = '0' + @empl_id
-                        ELSE
-                            BEGIN
 
-                                INSERT INTO #tbl_ghr_msg
-                                SELECT @msg_id         As msg_id
-                                    , REPLACE(REPLACE(t.msg_text, '@1', @empl_id), '@2', @emp_id) AS msg_desc
-                                FROM DBSCOMMON.dbo.message_master t     --#tbl_msg_master t
-                                WHERE (t.msg_id = @msg_id)
+                        INSERT INTO #tbl_ghr_msg
+                        SELECT @msg_id         As msg_id
+                            , REPLACE(REPLACE(t.msg_text, '@1', @empl_id), '@2', @emp_id) AS msg_desc
+                        FROM DBSCOMMON.dbo.message_master t     --#tbl_msg_master t
+                        WHERE (t.msg_id = @msg_id)
 
 
-                                -- Historical Message for reporting purpose
-                                EXEC DBShrpn.dbo.usp_ins_ghr_historical_message
-                                    @p_msg_id             = @msg_id
-                                    , @p_event_id           = @v_EVENT_ID_NEW_HIRE
-                                    , @p_emp_id             = @emp_id
-                                    , @p_eff_date           = @eff_date
-                                    , @p_pay_element_id     = @v_EMPTY_SPACE
-                                    , @p_msg_p1             = @v_EMPTY_SPACE
-                                    , @p_msg_p2             = @v_EMPTY_SPACE
-                                    , @p_msg_desc           = 'Invalid Employer id - defaulting to 99999'
-                                    , @p_activity_status    = @v_ACTIVITY_STATUS_WARNING
-                                    , @p_activity_date      = @p_activity_date
-                                    , @p_audit_id           = @aud_id
+                        -- Historical Message for reporting purpose
+                        EXEC DBShrpn.dbo.usp_ins_ghr_historical_message
+                            @p_msg_id             = @msg_id
+                            , @p_event_id           = @v_EVENT_ID_NEW_HIRE
+                            , @p_emp_id             = @emp_id
+                            , @p_eff_date           = @eff_date
+                            , @p_pay_element_id     = @v_EMPTY_SPACE
+                            , @p_msg_p1             = @v_EMPTY_SPACE
+                            , @p_msg_p2             = @v_EMPTY_SPACE
+                            , @p_msg_desc           = 'Invalid Employer id - bypassing record.'
+                            , @p_activity_status    = @v_ACTIVITY_STATUS_WARNING
+                            , @p_activity_date      = @p_activity_date
+                            , @p_audit_id           = @aud_id
 
-                                SELECT @empl_id = '99999'
+                        SET  @w_fatal_error = 1
 
-                            END
                     END
 
                 ---------------------------------------------------------------------------
@@ -490,13 +485,53 @@ BEGIN
                             , @p_pay_element_id     = @v_EMPTY_SPACE
                             , @p_msg_p1             = @v_EMPTY_SPACE
                             , @p_msg_p2             = @v_EMPTY_SPACE
-                            , @p_msg_desc           = 'National ID is blank - defaulting to '''''
+                            , @p_msg_desc           = 'National ID is blank - defaulting to ''99999'''
                             , @p_activity_status    = @v_ACTIVITY_STATUS_WARNING
                             , @p_activity_date      = @p_activity_date
                             , @p_audit_id           = @aud_id
 
                         SET @national_id = '99999'
                     END
+
+
+                ---------------------------------------------------------------------------
+                -- Check to see if National ID is already In Use
+                ---------------------------------------------------------------------------
+                IF EXISTS (
+                            SELECT 1
+                            FROM DBShrpn.dbo.individual_personal
+                            WHERE (national_id_1 = @national_id)
+                        )
+                    BEGIN
+
+                        SET @msg_id = 'U00006'
+                        SET @v_step_position = 'Begin ' + RTRIM(@msg_id)
+
+                        INSERT INTO #tbl_ghr_msg
+                        SELECT @msg_id     As msg_id
+                            , REPLACE(REPLACE(t.msg_text, '@1', @national_id), '@2', @emp_id) AS msg_desc
+                        FROM DBSCOMMON.dbo.message_master t     --#tbl_msg_master t
+                        WHERE (t.msg_id = @msg_id)
+
+                        -- Historical Message for reporting purpose
+                        EXEC DBShrpn.dbo.usp_ins_ghr_historical_message
+                            @p_msg_id             = @msg_id
+                            , @p_event_id           = @v_EVENT_ID_NEW_HIRE
+                            , @p_emp_id             = @emp_id
+                            , @p_eff_date           = @eff_date
+                            , @p_pay_element_id     = @v_EMPTY_SPACE
+                            , @p_msg_p1             = @v_EMPTY_SPACE
+                            , @p_msg_p2             = @v_EMPTY_SPACE
+                            , @p_msg_desc           = 'National ID already in use - defaulting to ''99999'''
+                            , @p_activity_status    = @v_ACTIVITY_STATUS_WARNING
+                            , @p_activity_date      = @p_activity_date
+                            , @p_audit_id           = @aud_id
+
+                        SET @national_id = '99999'
+
+                    END
+
+
 
 
                 ---------------------------------------------------------------------------
@@ -528,15 +563,16 @@ BEGIN
                             , @p_pay_element_id     = @v_EMPTY_SPACE
                             , @p_msg_p1             = @pay_group_id
                             , @p_msg_p2             = @v_EMPTY_SPACE
-                            , @p_msg_desc           = 'Invalid pay group id'
-                            , @p_activity_status    = @v_ACTIVITY_STATUS_BAD
+                            , @p_msg_desc           = 'Invalid pay group id - defaulting to ''99999''.'
+                            , @p_activity_status    = @v_ACTIVITY_STATUS_WARNING
                             , @p_activity_date      = @p_activity_date
                             , @p_audit_id           = @aud_id
 
 
-                        SET @pay_group_id = ' '
 
-                        SET  @w_fatal_error = 1
+
+                        --SET  @w_fatal_error = 1
+                        SET @pay_group_id = '99999'
 
                     END
 
@@ -788,6 +824,40 @@ BEGIN
                             , @p_msg_p1             = @emp_calculation
                             , @p_msg_p2             = ''
                             , @p_msg_desc           = 'Invalid Effective Date'
+                            , @p_activity_status    = @v_ACTIVITY_STATUS_BAD
+                            , @p_activity_date      = @p_activity_date
+                            , @p_audit_id           = @aud_id
+
+                        SET @w_fatal_error = 1
+
+                    END
+
+
+                ---------------------------------------------------------------------------
+                -- Validate Birth Date
+                ---------------------------------------------------------------------------
+                IF (@birth_date = @v_BAD_DATE_INDICATOR)
+                    BEGIN
+
+                        SET @msg_id = 'U00102'  -- New code
+                        SET @v_step_position = 'Validation Birth Date - ' + RTRIM(@msg_id)
+
+                        INSERT INTO #tbl_ghr_msg
+                        SELECT @msg_id AS msg_id
+                            , REPLACE(REPLACE(REPLACE(t.msg_text, '@1', CONVERT(char(8), @birth_date, 112)), '@2', @emp_id), '@3', @v_EVENT_ID_NEW_HIRE) AS msg_desc
+                        FROM DBSCOMMON.dbo.message_master t
+                        WHERE (msg_id = @msg_id)
+
+                        -- Historical Message for reporting purpose
+                        EXEC DBShrpn.dbo.usp_ins_ghr_historical_message
+                            @p_msg_id             = @msg_id
+                            , @p_event_id           = @v_EVENT_ID_NEW_HIRE
+                            , @p_emp_id             = @emp_id
+                            , @p_eff_date           = @eff_date
+                            , @p_pay_element_id     = @v_EMPTY_SPACE
+                            , @p_msg_p1             = 'Birth date value was able to be converted to a valid date.'
+                            , @p_msg_p2             = ''
+                            , @p_msg_desc           = 'Invalid Birth Date'
                             , @p_activity_status    = @v_ACTIVITY_STATUS_BAD
                             , @p_activity_date      = @p_activity_date
                             , @p_audit_id           = @aud_id
