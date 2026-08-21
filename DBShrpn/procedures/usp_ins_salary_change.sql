@@ -20,6 +20,8 @@ GO
     SP Name:       usp_ins_salary_change
 
     Description:
+        Updates associate's salary on table DBShrpn.dbo.emp_assignment. This update is
+        dictated by event code '02' from Info HCM extract file record.
 
 
     Parameters:
@@ -37,10 +39,13 @@ GO
             , @p_activity_date   = @w_activity_date
 
 
-   Revision history:
-   version  date        developer   SCR         description
-   -------  ----------  ---------   -----       ------------------------------------
-   1.0.00   11/24/2025  CJP                     - Derived from GOG version but adapted for GOSL
+    Revision history:
+    version date        developer   SCR         description
+    ------- ----------  ---------   -----       ------------------------------------
+    1.0.00  11/24/2025  CJP                     - Derived from GOG version but adapted for GOSL
+    2.0.00  07/20/2026  CJP                     - Phase III
+                                                    1) Added columns pay_frequency_code, pay_rate_type_code, and pay_sched_code
+                                                    2) Update salary setup logic to use pay frequency code
 
 ************************************************************************************/
 
@@ -57,125 +62,108 @@ BEGIN
 
     SET NOCOUNT ON
 
-    DECLARE @v_step_position                    varchar(255)        = 'Begin Procedure'
-    DECLARE @v_single_quote						char(01)            = char(39)
+    DECLARE @v_step_position                        varchar(255)        = 'Begin Procedure'
+    DECLARE @v_single_quote						    char(01)            = char(39)
+    DECLARE @v_ret_val                              int                 = 0
 
-    DECLARE @v_END_OF_TIME_DATE                 datetime            = '29991231'
-    DECLARE @v_BAD_DATE_INDICATOR               datetime            = '99991231'    -- value used to populate datetime column with value from HCM that is not a valid date after conversion
+    DECLARE @v_END_OF_TIME_DATE                     datetime            = '29991231'
+    DECLARE @v_BAD_DATE_INDICATOR                   datetime            = '99991231'    -- value used to populate datetime column with value from HCM that is not a valid date after conversion
 
-    DECLARE @v_EMPTY_SPACE                      char(01)            = ''
+    DECLARE @v_EMPTY_SPACE                          char(01)            = ''
 
-    DECLARE @v_EVENT_ID_NEW_HIRE                char(2)             = '01'
-    DECLARE @v_EVENT_ID_SALARY_CHANGE           char(2)             = '02'
-    DECLARE @v_EVENT_ID_TRANSFER                char(2)             = '03'
-    DECLARE @v_EVENT_ID_NAME_CHANGE             char(2)             = '04'
-    DECLARE @v_EVENT_ID_STATUS_CHANGE           char(2)             = '05'
-    DECLARE @v_EVENT_ID_PAY_ELE                 char(2)             = '06'
-    DECLARE @v_EVENT_ID_PAY_GROUP               char(2)             = '08'
-    DECLARE @v_EVENT_ID_LABOR_GROUP             char(2)             = '09'
-    DECLARE @v_EVENT_ID_POSITION_TITLE          char(2)             = '10'
+    DECLARE @v_EVENT_ID_NEW_HIRE                    char(2)             = '01'
+    DECLARE @v_EVENT_ID_SALARY_CHANGE               char(2)             = '02'
+    DECLARE @v_EVENT_ID_TRANSFER                    char(2)             = '03'
+    DECLARE @v_EVENT_ID_NAME_CHANGE                 char(2)             = '04'
+    DECLARE @v_EVENT_ID_STATUS_CHANGE               char(2)             = '05'
+    DECLARE @v_EVENT_ID_PAY_ELE                     char(2)             = '06'
+    DECLARE @v_EVENT_ID_PAY_GROUP                   char(2)             = '08'
+    DECLARE @v_EVENT_ID_LABOR_GROUP                 char(2)             = '09'
+    DECLARE @v_EVENT_ID_POSITION_TITLE              char(2)             = '10'
 
-    DECLARE @v_ACTIVITY_STATUS_GOOD             char(2)             = '00'
-    DECLARE @v_ACTIVITY_STATUS_WARNING          char(2)             = '01'
-    DECLARE @v_ACTIVITY_STATUS_BAD              char(2)             = '02'
+    DECLARE @v_ACTIVITY_STATUS_GOOD                 char(2)             = '00'
+    DECLARE @v_ACTIVITY_STATUS_WARNING              char(2)             = '01'
+    DECLARE @v_ACTIVITY_STATUS_BAD                  char(2)             = '02'
 
-    DECLARE @v_ASSIGNED_TO_CODE                 char(01)            = 'P'
-    DECLARE @v_ORGANIZATION_CHART_NAME          varchar(64)         = 'HRGOSL'  -- Wrong value in file
-    DECLARE @v_ORGANIZATION_GROUP_ID            float               = 5         -- In file but can I trust it?
+    DECLARE @v_ASSIGNED_TO_CODE                     char(01)            = 'P'
+    DECLARE @v_ORGANIZATION_CHART_NAME              varchar(64)         = 'HRGOSL'  -- Wrong value in file
+    DECLARE @v_ORGANIZATION_GROUP_ID                float               = 5         -- In file but can I trust it?
 
-    --DECLARE @v_STANDARD_DAILY_WORK_HRS          float               = 8.0       -- Correct for GOSL?
-    DECLARE @v_SHIFT_DIFFERENTIAL_STATUS_CODE   char(02)            = '99'      -- Correct for GOSL?
-	--DECLARE @v_PAY_BASIS_CODE					char(01)			= '9'    -- 9 = Not Applicable  -- 10/29/2025 looking up current value to bring forward
-    --DECLARE @v_POSITION_OVERTIME_STATUS_CODE    char(02)            = '99'
 
-    DECLARE @ErrorNumber                        varchar(10)
-    DECLARE @ErrorMessage                       nvarchar(4000)
-    DECLARE @ErrorSeverity                      int
-    DECLARE @ErrorState                         int
+    DECLARE @v_SHIFT_DIFFERENTIAL_STATUS_CODE       char(02)            = '99'      -- Correct for GOSL?
 
-    DECLARE @v_ret_val                          int = 0
+    DECLARE @ErrorNumber                            varchar(10)
+    DECLARE @ErrorMessage                           nvarchar(4000)
+    DECLARE @ErrorSeverity                          int
+    DECLARE @ErrorState                             int
 
-    DECLARE @w_msg_text                         varchar(255)
-    DECLARE @w_msg_text_2                       varchar(255)
-    DECLARE @w_msg_text_3                       varchar(255)
-    DECLARE @w_severity_cd                      tinyint
-    DECLARE @w_fatal_error                      bit     = 0         --char(01)
+    DECLARE @w_msg_text                             varchar(255)
+    DECLARE @w_msg_text_2                           varchar(255)
+    DECLARE @w_msg_text_3                           varchar(255)
+    DECLARE @w_severity_cd                          tinyint
+    DECLARE @w_fatal_error                          bit                 = 0         --char(01)
 
-    DECLARE @maxx                               char(06)
-    DECLARE @msg_id                             char(10)
-    DECLARE @cur_ea_assigned_to_code            char(01)
-    DECLARE @cur_ea_job_or_pos_id               char(10)
-    DECLARE @cur_ea_eff_date                    datetime
-    DECLARE @cur_ea_begin_date                  datetime
-    DECLARE @cur_ea_end_date                    datetime
-/*
-    DECLARE @cur_ea_work_tm_code                char(01)
-    DECLARE @cur_ea_standard_work_hrs           float
-    DECLARE @cur_ea_standard_work_pd_id         char(05)
-    DECLARE @cur_ea_salary_change_date          datetime
-    DECLARE @cur_ea_pd_salary_amt               money
-    DECLARE @cur_ea_hourly_pay_rate             float
-    DECLARE @cur_ea_annual_salary_amt           money
-    DECLARE @cur_ea_curr_code                   char(03)
-    DECLARE @cur_ea_pd_salary_tm_pd_id          char(05)
-    DECLARE @cur_ea_pay_basis_code              char(01)
-*/
-    DECLARE @cur_ea_user_amt_1                  float
-    DECLARE @cur_ea_user_amt_2                  float
-    DECLARE @cur_ea_user_code_1                 char(05)
-    DECLARE @cur_ea_user_code_2                 char(05)
-    DECLARE @cur_ea_user_date_1                 datetime
-    DECLARE @cur_ea_user_date_2                 datetime
-    DECLARE @cur_ea_user_ind_1                  char(01)
-    DECLARE @cur_ea_user_ind_2                  char(01)
-    DECLARE @cur_ea_user_monetary_amt_1         money
-    DECLARE @cur_ea_user_monetary_amt_2         money
-    DECLARE @cur_ea_user_monetary_curr_code     char(03)
-    DECLARE @cur_ea_user_text_1                 char(50)
-    DECLARE @cur_ea_user_text_2                 char(50)
+    DECLARE @maxx                                   char(06)
+    DECLARE @msg_id                                 char(10)
+    DECLARE @cur_ea_assigned_to_code                char(01)
+    DECLARE @cur_ea_job_or_pos_id                   char(10)
+    DECLARE @cur_ea_eff_date                        datetime
+    DECLARE @cur_ea_prior_eff_date                  datetime
+    DECLARE @cur_ea_begin_date                      datetime
+    DECLARE @cur_ea_end_date                        datetime
 
-    DECLARE @cur_ea_chgstamp                    smallint
-    DECLARE @cur_stat_emp_status_code           char(01)
-    DECLARE @cur_stat_status_change_date        datetime
-/*
-    DECLARE @w_eff_date                         datetime
-    DECLARE @w_tm_pd_annualizing_factor         float
-    DECLARE @w_tm_pd_hrs                        float
-	DECLARE @v_calc_fte							float
-    DECLARE @w_annual_salary_amt                money
-    DECLARE @w_pg_pay_frequency_code            char(05)
-    DECLARE @w_pg_tm_reporting_pd_code          char(01)
-*/
+    DECLARE @cur_ea_user_amt_1                      float
+    DECLARE @cur_ea_user_amt_2                      float
+    DECLARE @cur_ea_user_code_1                     char(05)
+    DECLARE @cur_ea_user_code_2                     char(05)
+    DECLARE @cur_ea_user_date_1                     datetime
+    DECLARE @cur_ea_user_date_2                     datetime
+    DECLARE @cur_ea_user_ind_1                      char(01)
+    DECLARE @cur_ea_user_ind_2                      char(01)
+    DECLARE @cur_ea_user_monetary_amt_1             money
+    DECLARE @cur_ea_user_monetary_amt_2             money
+    DECLARE @cur_ea_user_monetary_curr_code         char(03)
+    DECLARE @cur_ea_user_text_1                     char(50)
+    DECLARE @cur_ea_user_text_2                     char(50)
+
+    DECLARE @cur_ea_chgstamp                        smallint
+    DECLARE @cur_stat_emp_status_code               char(01)
+    DECLARE @cur_stat_status_change_date            datetime
+
 
     -- Error message descriptions for procedure usp_hsp_upd_hasg_reassign
-    DECLARE @w_error_number                     INT             = 0
-    DECLARE @w_em_msg                           char(50)
+    DECLARE @w_error_number                         int                 = 0
+    DECLARE @w_em_msg                               char(50)
 
-    DECLARE @w_hourly_pay_rate                      float           = 0.00
-    DECLARE @w_pd_salary_amt                        money           = 0.00
-    DECLARE @w_pd_salary_tm_pd_id                   char(05)        = 'MONTH'
-    DECLARE @w_annual_salary_amt                    money           = 0.00
-    DECLARE @w_pay_basis_code                       char(01)        = '9'
-    DECLARE @w_curr_code                            char(03)        = 'XCD'
-    DECLARE @w_work_tm_code                         char(01)        = 'F'
-    DECLARE @w_standard_daily_work_hrs              float           = 8
-    DECLARE @w_standard_work_hrs                    float           = 40
-    DECLARE @w_standard_work_pd_id                  char(05)        = 'WEEK'
-    DECLARE @w_overtime_status_code                 char(02)        = '99'
-    DECLARE @w_pay_on_reported_hrs_ind              char(01)        = 'N'
+    DECLARE @w_hourly_pay_rate                      float               = 0.00
+    DECLARE @w_pd_salary_amt                        money               = 0.00
+    DECLARE @w_pd_salary_tm_pd_id                   char(05)            = 'MONTH'
+    DECLARE @w_annual_salary_amt                    money               = 0.00
+    DECLARE @w_pay_basis_code                       char(01)            = '9'
+    DECLARE @w_curr_code                            char(03)            = 'XCD'
+    DECLARE @w_work_tm_code                         char(01)            = 'F'
+    DECLARE @w_standard_daily_work_hrs              float               = 8
+    DECLARE @w_standard_work_hrs                    float               = 40
+    DECLARE @w_standard_work_pd_id                  char(05)            = 'WEEK'
+    DECLARE @w_overtime_status_code                 char(02)            = '99'
+    DECLARE @w_pay_on_reported_hrs_ind              char(01)            = 'N'
     DECLARE @w_tm_pd_hrs                            float
     DECLARE @w_calc_fte							    float
 
     -- This section declares the interface values from Global HR
-    DECLARE @aud_id                                 int             = 0
-    DECLARE @emp_id                                 char(15)        = ''
+    DECLARE @aud_id                                 int                 = 0
+    DECLARE @emp_id                                 char(15)            = ''
     DECLARE @eff_date                               datetime
-    DECLARE @position_title                         char(50)        -- DBShrpn..emp_assignment.user_text_2
+    DECLARE @position_title                         char(50)            -- DBShrpn..emp_assignment.user_text_2
     DECLARE @pay_rate                               money
-    DECLARE @file_source                            char(50)        -- 'SS VENUS' or 'SS GANYMEDE'
-    DECLARE @job_or_pos_id                          char(10)        = @v_EMPTY_SPACE
+    DECLARE @file_source                            char(50)            -- 'SS VENUS' or 'SS GANYMEDE'
+    DECLARE @job_or_pos_id                          char(10)            = @v_EMPTY_SPACE
     DECLARE @annual_hrs_per_fte                     money
     DECLARE @annual_rate                            money
+
+    DECLARE @pay_frequency_code                     char(01)
+    DECLARE @pay_rate_type_code                     char(01)
+    DECLARE @pay_sched_code                         char(01)
 
     -- Table variable to store results from procedure usp_hsp_upd_hasg_reassign
     DECLARE @tbl_sp_err TABLE
@@ -205,11 +193,16 @@ BEGIN
         SELECT  t.aud_id
              , t.emp_id
              , t.eff_date
-             , LEFT(t.position_title, 50) AS position_title
+             , t.position_title
              , t.annual_salary_amt
              , t.file_source
              , t.annual_hrs_per_fte
              , t.annual_rate
+
+             , t.pay_frequency_code
+             , t.pay_rate_type_code
+             , t.pay_sched_code
+
              , t.job_or_pos_id
         FROM #ghr_employee_events_temp t
         WHERE (event_id = @v_EVENT_ID_SALARY_CHANGE)
@@ -227,6 +220,9 @@ BEGIN
             , @file_source
             , @annual_hrs_per_fte
             , @annual_rate
+            , @pay_frequency_code
+            , @pay_rate_type_code
+            , @pay_sched_code
             , @job_or_pos_id
 
 
@@ -517,20 +513,9 @@ BEGIN
                 SELECT    @cur_ea_assigned_to_code              = ea.assigned_to_code
                         , @cur_ea_job_or_pos_id                 = ea.job_or_pos_id
                         , @cur_ea_eff_date                      = ea.eff_date
+                        , @cur_ea_prior_eff_date                = ea.prior_eff_date
                         , @cur_ea_begin_date                    = ea.begin_date
                         , @cur_ea_end_date                      = ea.end_date
-                        /*
-                        , @cur_ea_work_tm_code                  = ea.work_tm_code
-                        , @cur_ea_standard_work_hrs             = ea.standard_work_hrs
-                        , @cur_ea_standard_work_pd_id           = ea.standard_work_pd_id
-                        , @cur_ea_salary_change_date            = ea.salary_change_date
-                        , @cur_ea_pd_salary_amt                 = ea.pd_salary_amt
-                        , @cur_ea_hourly_pay_rate               = ea.hourly_pay_rate
-                        , @cur_ea_annual_salary_amt             = ea.annual_salary_amt
-                        , @cur_ea_curr_code                     = ea.curr_code
-                        , @cur_ea_pd_salary_tm_pd_id            = ea.pd_salary_tm_pd_id
-                        , @cur_ea_pay_basis_code                = ea.pay_basis_code
-                        */
                         -- Capture values from user defined fields to bring forward
                         , @cur_ea_user_amt_1                    = ea.user_amt_1
                         , @cur_ea_user_amt_2                    = ea.user_amt_2
@@ -671,7 +656,17 @@ BEGIN
                 ---------------------------------------------------------------------------
                 -- Universally setup all associates as monthly; 8 hrs/day; 40 hrs/week
                 -- Indicates that the associate is setup as annually
-                IF (@pay_rate = @annual_rate)
+                --IF (@pay_rate = @annual_rate)
+
+                -- Pay Rate Type Code:
+                -- 1 - Hourly
+                -- 2 - Annual Salary - Not Used - Will setup as monthly if code is used
+                -- 3 - Monthly Salary
+                -- Monthly Salary
+                IF (
+                    (@pay_frequency_code = '3') OR
+                    (@pay_frequency_code = '2')
+                   )
                     SELECT @w_annual_salary_amt       = @pay_rate
                          , @w_pay_basis_code          = '2'     -- Period Salary
                          , @w_pd_salary_amt           = ROUND(@pay_rate / 12, 2)
@@ -681,8 +676,8 @@ BEGIN
                          , @w_pay_on_reported_hrs_ind = 'N'     -- Pay Based on Standard Hours Checkbox
                          , @w_standard_work_hrs       = 40.0
                          , @w_standard_work_pd_id     = 'WEEK'
-
-                ELSE
+                -- Hourly
+                ELSE --IF (@pay_rate_type_code = '1')
                     -- Hourly setup
                     BEGIN
                         -- unique settings based on environment
@@ -705,6 +700,8 @@ BEGIN
 
                     END
 
+
+
                 ---------------------------------------------------------------------------
                 -- Calculate FTE
                 ---------------------------------------------------------------------------
@@ -724,7 +721,7 @@ BEGIN
                 IF (@cur_ea_job_or_pos_id <> @job_or_pos_id)
                     BEGIN
 
-                        /*
+
                         SET @v_step_position = 'Emp Assignment - Reassign Debug'
 
                         -- Debug
@@ -738,11 +735,11 @@ BEGIN
                         , (', @asg_new_assign_to           = ' + @v_single_quote + @v_ASSIGNED_TO_CODE                                   + @v_single_quote)
                         , (', @asg_new_assign_id           = ' + @v_single_quote + RTRIM(@job_or_pos_id)                                 + @v_single_quote)
                         , (', @asg_new_assign_reason       = ' + @v_single_quote + @v_EMPTY_SPACE                                        + @v_single_quote)
-                        , (', @asg_new_beg_date            = ' + @v_single_quote + CONVERT(char(8), @w_eff_date, 112)                    + @v_single_quote)
+                        , (', @asg_new_beg_date            = ' + @v_single_quote + CONVERT(char(8), @eff_date, 112)                    + @v_single_quote)
                         , (', @asg_new_end_date            = ' + @v_single_quote + CONVERT(char(8), @v_END_OF_TIME_DATE, 112)            + @v_single_quote)
-                        , (', @asg_fte_error_level         = ' + @v_single_quote + 'R'                                                   + @v_single_quote)
+                        , (', @asg_fte_error_level         = ' + @v_single_quote + @v_EMPTY_SPACE                                        + @v_single_quote)
                         , (', @asg_incumbent_error_level   = ' + @v_single_quote + @v_EMPTY_SPACE                                        + @v_single_quote)    -- was 'R' in WTW
-                        , (', @asf_fs_error_level          = ' + @v_single_quote + 'R'                                                   + @v_single_quote)
+                        , (', @asf_fs_error_level          = ' + @v_single_quote + @v_EMPTY_SPACE                                        + @v_single_quote)
                         , (', @asg_new_work_time_ind       = ' + @v_single_quote + @w_work_tm_code                                       + @v_single_quote)
                         , (', @asg_new_std_hours           = ' +                   CONVERT(varchar, @w_standard_work_hrs, 0)                              )
                         , (', @asg_new_std_work_period     = ' + @v_single_quote + @w_standard_work_pd_id                                + @v_single_quote)
@@ -772,7 +769,10 @@ BEGIN
                         , (', @w_new_org_group             = ' +                   CONVERT(varchar, @v_ORGANIZATION_GROUP_ID, 0)                          )         -- NOT USED IN PROCEDURE
                         , (', @app_new_shift_rate_id       = ' + @v_single_quote + @v_EMPTY_SPACE                                        + @v_single_quote)
                         , (' ');
-                        */
+
+                        -- Commit records in case an error is encountered
+                        IF (@@TRANCOUNT > 0)
+                            COMMIT TRAN
 
                         SET @v_step_position = 'Emp Assignment - Reassign'
 
@@ -799,9 +799,9 @@ BEGIN
                             , @asg_new_assign_reason       = @v_EMPTY_SPACE                             -- char(05)
                             , @asg_new_beg_date            = @eff_date                                -- datetime
                             , @asg_new_end_date            = @v_END_OF_TIME_DATE                        -- datetime
-                            , @asg_fte_error_level         = 'R'                                        -- char(01)
+                            , @asg_fte_error_level         = @v_EMPTY_SPACE     --'R'                                        -- char(01)
                             , @asg_incumbent_error_level   = @v_EMPTY_SPACE                             -- char(01)        -- was 'R' in WTW
-                            , @asf_fs_error_level          = 'R'                                        -- char(01)
+                            , @asf_fs_error_level          = @v_EMPTY_SPACE     --'R'                                        -- char(01)
                             , @asg_new_work_time_ind       = @w_work_tm_code                            -- char(01)
                             , @asg_new_std_hours           = @w_standard_work_hrs                       -- float
                             , @asg_new_std_work_period     = @w_standard_work_pd_id                     -- char(05)
@@ -897,20 +897,20 @@ BEGIN
 
                 ELSE
                     BEGIN
-                        /*
+
                         SET @v_step_position = 'Emp Assignment - Update Assignment Debug'
 
                         -- DEBUG
                         INSERT DBShrpn.dbo.ghr_debug (text_line)
                         VALUES ('EXEC DBShrpn.dbo.usp_hsp_upd_hasg')
-                        , ('@use_eff_date                  = ' + @v_single_quote + CONVERT(varchar, @w_eff_date, 112)                                        + @v_single_quote)         -- datetime
+                        , ('@use_eff_date                    = ' + @v_single_quote + CONVERT(varchar, @eff_date, 112)                                        + @v_single_quote)         -- datetime
                         , (', @use_end_date                  = ' + @v_single_quote + CONVERT(varchar, @v_END_OF_TIME_DATE, 112)                              + @v_single_quote)         -- datetime     -- NOT USED IN PROCEDURE
                         , (', @employee_identifier           = ' + @v_single_quote + RTRIM(@emp_id)                                                          + @v_single_quote)         -- char(15)
                         , (', @emp_asgmt_assigned_to_code    = ' + @v_single_quote + @v_ASSIGNED_TO_CODE                                                     + @v_single_quote)         -- char(01)
                         , (', @emp_asgmt_job_or_pos_id       = ' + @v_single_quote + RTRIM(@job_or_pos_id)                                                   + @v_single_quote)         -- char(10)
-                        , (', @emp_asgmt_eff_date            = ' + @v_single_quote + CONVERT(varchar, @eff_date, 112)                                 + @v_single_quote)         -- datetime
+                        , (', @emp_asgmt_eff_date            = ' + @v_single_quote + CONVERT(varchar, @cur_ea_eff_date, 112)                                 + @v_single_quote)         -- datetime
                         , (', @emp_asgmt_next_eff_date       = ' + @v_single_quote + CONVERT(varchar, @v_END_OF_TIME_DATE, 112)                              + @v_single_quote)         -- datetime
-                        , (', @emp_asgmt_prior_eff_dt        = ' + @v_single_quote + CONVERT(varchar, @cur_ea_eff_date, 112)                                 + @v_single_quote)         -- datetime     -- NOT USED IN PROCEDURE
+                        , (', @emp_asgmt_prior_eff_dt        = ' + @v_single_quote + CONVERT(varchar, @cur_ea_prior_eff_date, 112)                                 + @v_single_quote)         -- datetime     -- NOT USED IN PROCEDURE
                         , (', @emp_asgmt_begin_date          = ' + @v_single_quote + CONVERT(varchar, @cur_ea_begin_date, 112)                               + @v_single_quote)         -- datetime     ** since assignment didn't change then get original begin date
                         , (', @emp_asgmt_end_date            = ' + @v_single_quote + CONVERT(varchar, @v_END_OF_TIME_DATE, 112)                              + @v_single_quote)         -- datetime
                         , (', @emp_display_name              = ' + @v_single_quote + @v_EMPTY_SPACE                                                          + @v_single_quote)         -- char(45)     -- NOT USED IN PROCEDURE
@@ -921,7 +921,6 @@ BEGIN
                         , (', @tm_pd_hrs                     = 0'                                                                                                             )         -- float        -- NOT USED IN PROCEDURE
                         , (', @emp_asgmt_reason_code         = ' + @v_single_quote + @v_EMPTY_SPACE                                                          + @v_single_quote)         -- char(05)
                         , (', @emp_prime_assignment_ind      = ' + @v_single_quote + 'Y'                                                                     + @v_single_quote)         -- char(01)
-                        , (', @emp_asgmt_reason_code         = ' + @v_single_quote + @v_EMPTY_SPACE                                                          + @v_single_quote)         -- char(05)
                         , (', @emp_occupancy_code            = ' + @v_single_quote + '3'                                                                     + @v_single_quote)         -- char(01)
                         , (', @emp_asgmt_official_title_code = ' + @v_single_quote + @v_EMPTY_SPACE                                                          + @v_single_quote)         -- char(05)
                         , (', @emp_asgmt_official_title_date = ' + @v_single_quote + CONVERT(varchar, @v_END_OF_TIME_DATE, 112)                              + @v_single_quote)         -- datetime
@@ -978,7 +977,7 @@ BEGIN
                         , (', @emp_asgmt_user_ind_2          = ' + @v_single_quote + @cur_ea_user_ind_2                                                      + @v_single_quote)         -- char(01)
                         , (', @emp_user_monetary_amt_1       = ' +                   CONVERT(varchar, @cur_ea_user_monetary_amt_1, 0)                                         )         -- money
                         , (', @emp_user_monetary_amt_2       = ' +                   CONVERT(varchar, @cur_ea_user_monetary_amt_2, 0)                                         )         -- money
-                        , (', @emp_user_monetary_curr_code   = ' + @v_single_quote + @cur_ea_curr_code                                                       + @v_single_quote)         -- char(03)
+                        , (', @emp_user_monetary_curr_code   = ' + @v_single_quote + @cur_ea_user_monetary_curr_code                                         + @v_single_quote)         -- char(03)
                         , (', @emp_user_text_1               = ' + @v_single_quote + @cur_ea_user_text_1                                                     + @v_single_quote)         -- char(50)
                         , (', @emp_user_text_2               = ' + @v_single_quote + @position_title                                                         + @v_single_quote)         -- char(50)
                         , (', @emp_asgmt_org_chart_id        = ' + @v_single_quote + @v_EMPTY_SPACE                                                          + @v_single_quote)         -- char(64)      -- Was @v_ORGANIZATION_CHART_NAME
@@ -1016,21 +1015,24 @@ BEGIN
                         , (', @w_asg_life_end_date           = ' + @v_single_quote + CONVERT(varchar, @v_END_OF_TIME_DATE, 112)                              + @v_single_quote)         -- datetime     -- NOT USED IN PROCEDURE
                         , (', @emp_chgstamp                  = ' +                   CONVERT(varchar, @cur_ea_chgstamp, 0)                                                    )         -- smallint
                         , (' ');
-                        */
+
+                        -- Commit records in case an error is encountered
+                        IF (@@TRANCOUNT > 0)
+                            COMMIT TRAN
 
 
                         SET @v_step_position = 'Emp Assignment - Update Assignment'
 
                         -- Update existing Emp Assignment Job/Position - Will create new eff date record
                         EXEC DBShrpn.dbo.usp_hsp_upd_hasg
-                              @use_eff_date                  = @eff_date                                      -- datetime
+                              @use_eff_date                  = @eff_date                                        -- datetime
                             , @use_end_date                  = @v_END_OF_TIME_DATE                              -- datetime         -- NOT USED IN PROCEDURE
                             , @employee_identifier           = @emp_id                                          -- char(15)
                             , @emp_asgmt_assigned_to_code    = @v_ASSIGNED_TO_CODE                              -- char(01)
                             , @emp_asgmt_job_or_pos_id       = @job_or_pos_id                                   -- char(10)
-                            , @emp_asgmt_eff_date            = @eff_date                                        -- datetime
+                            , @emp_asgmt_eff_date            = @cur_ea_eff_date                                        -- datetime
                             , @emp_asgmt_next_eff_date       = @v_END_OF_TIME_DATE                              -- datetime
-                            , @emp_asgmt_prior_eff_dt        = @cur_ea_eff_date                                 -- datetime         -- NOT USED IN PROCEDURE
+                            , @emp_asgmt_prior_eff_dt        = @cur_ea_prior_eff_date                                 -- datetime         -- NOT USED IN PROCEDURE
                             , @emp_asgmt_begin_date          = @cur_ea_begin_date                               -- datetime         ** since assignment didn't change then get original begin date
                             , @emp_asgmt_end_date            = @v_END_OF_TIME_DATE                              -- datetime
                             , @emp_display_name              = @v_EMPTY_SPACE                                   -- char(45)         -- NOT USED IN PROCEDURE
@@ -1195,6 +1197,11 @@ BYPASS_EMPLOYEE:
                 , @file_source
                 , @annual_hrs_per_fte
                 , @annual_rate
+
+                , @pay_frequency_code
+                , @pay_rate_type_code
+                , @pay_sched_code
+
                 , @job_or_pos_id
 
 

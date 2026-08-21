@@ -44,8 +44,9 @@ organized into the following change events:
 
 ## SmartStream Job Scheduler Configuration
 
-| Alias Configuration INTERFACE                       |
+||
 |-----------------------------------------------------|
+| Alias Configuration INTERFACE                       |
 | Batch Script – INTERFACE.bat                        |
 | Alias Configuration – UPLOAD                        |
 | Batch Script – Upload_GOSL.bat                      |
@@ -57,15 +58,17 @@ organized into the following change events:
 
 ## SQL Server Tables
 
-| DBShrpn.dbo.employee_events         |
+||
 |-------------------------------------|
+| DBShrpn.dbo.employee_events         |
 | DBShrpn.dbo.employee_events_aud     |
 | DBShrpn.dbo.ghr_historical_messages |
 
 ## SQL Server Stored Procedures
 
-| DBShrpn.dbo.usp_sel_employee_events        |
+||
 |--------------------------------------------|
+| DBShrpn.dbo.usp_sel_employee_events        |
 | DBShrpn.dbo.usp_ins_new_hire               |
 | DBShrpn.dbo.usp_ins_perform_transfer       |
 | DBShrpn.dbo.usp_ins_name_change            |
@@ -82,21 +85,24 @@ organized into the following change events:
 
 ## SQL Server Views
 
-| DBShrpn.dbo.uvu_emp_assignment_most_rec |
+||
 |-----------------------------------------|
+| DBShrpn.dbo.uvu_emp_assignment_most_rec |
 | DBShrpn.dbo.uvu_emp_employment_most_rec |
 | DBShrpn.dbo.uvu_emp_status_most_rec     |
 
 ## SQL Server Functions
 
-| DBShrpn.dbo.unf_ret_ganymede_to_hcm_emp_id |
+||
 |--------------------------------------------|
+| DBShrpn.dbo.unf_ret_ganymede_to_hcm_emp_id |
 | DBShrpn.dbo.ufn_ret_job_or_pos_id          |
 
 ## SmartStream SQL Server Stored Procedures
 
-| DBShrpn.dbo.usp_ins_hemp_02         |
+||
 |-------------------------------------|
+| DBShrpn.dbo.usp_ins_hemp_02         |
 | DBShrpn.dbo.usp_ins_hemp_03         |
 | DBShrpn.dbo.usp_ins_hemp_04         |
 | DBShrpn.dbo.usp_ins_hemp            |
@@ -124,8 +130,7 @@ required to implement this program.
 
 ## GHR INTERFACES
 
-<img src="images/JobSchedulerGHRInterfaces.png" style="width:4.84in;height:3.45in"
-
+<img src="images/JobSchedulerGHRInterfaces.png" alt="Alt text" width="500" height="500">
 
 ###
 
@@ -364,8 +369,9 @@ message records are saved to table DBShrpn.dbo.ghr_historical_messages.
 
 ##### Calling Arguments
 
-| None |     |     |
-|------|-----|-----|
+| Parameter | Data Type | Desription |
+| --------- | --------- | ---------- |
+| None      |           |            |
 
 ##### Description
 
@@ -480,8 +486,9 @@ an archive the processed data and is used in
 
 ##### Calling Arguments
 
-| @p_user_id       | VARCHAR(30) | User ID       |
+| Parameter        | Data Type   | Desription    |
 |------------------|-------------|---------------|
+| @p_user_id       | VARCHAR(30) | User ID       |
 | @p_batchname     | VARCHAR(08) | Batch Name    |
 | @p_qualifier     | VARCHAR(30) | Qualifier     |
 | @p_activity_date | DATETIME    | Activity Date |
@@ -642,8 +649,9 @@ For details, see Validation Error codes at the end if this description.
 
     -   Monthly Setup
 
-| @w_annual_salary_amt       | Pay Rate (Column 16)                         |
+| Variable                   | Description                                  |
 |----------------------------|----------------------------------------------|
+| @w_annual_salary_amt       | Pay Rate (Column 16)                         |
 | @w_pay_basis_code          | Period Salary – ‘2’                          |
 | @w_pd_salary_amt           | ROUND(pay_rate / 12, 2)                      |
 | @w_pd_salary_tm_pd_id      | ‘MONTH'                                      |
@@ -757,8 +765,9 @@ Update table DBShrpn.dbo.ghr_employee_events_aud field proc_flag to ‘Y’.
 
 ##### Calling Arguments
 
-| @p_user_id       | VARCHAR(30) | User ID       |
+| Parameter        | Data Type   | Desription    |
 |------------------|-------------|---------------|
+| @p_user_id       | VARCHAR(30) | User ID       |
 | @p_batchname     | VARCHAR(08) | Batch Name    |
 | @p_qualifier     | VARCHAR(30) | Qualifier     |
 | @p_activity_date | DATETIME    | Activity Date |
@@ -786,8 +795,9 @@ Update table DBShrpn.dbo.ghr_employee_events_aud field proc_flag to ‘Y’.
 
 ##### Calling Arguments
 
-| @p_user_id       | VARCHAR(30) | User ID       |
+| Parameter        | Data Type   | Desription    |
 |------------------|-------------|---------------|
+| @p_user_id       | VARCHAR(30) | User ID       |
 | @p_batchname     | VARCHAR(08) | Batch Name    |
 | @p_qualifier     | VARCHAR(30) | Qualifier     |
 | @p_activity_date | DATETIME    | Activity Date |
@@ -874,8 +884,9 @@ Update table DBShrpn.dbo.ghr_employee_events_aud field proc_flag to ‘Y’.
 
 ##### Calling Arguments
 
-| @p_user_id       | VARCHAR(30) | User ID       |
+| Parameter        | Data Type   | Desription    |
 |------------------|-------------|---------------|
+| @p_user_id       | VARCHAR(30) | User ID       |
 | @p_batchname     | VARCHAR(08) | Batch Name    |
 | @p_qualifier     | VARCHAR(30) | Qualifier     |
 | @p_activity_date | DATETIME    | Activity Date |
@@ -939,8 +950,9 @@ The procedure performs the update in the following steps:
 
 ##### Calling Arguments
 
-| @p_user_id       | VARCHAR(30) | User ID       |
+| Parameter        | Data Type   | Desription    |
 |------------------|-------------|---------------|
+| @p_user_id       | VARCHAR(30) | User ID       |
 | @p_batchname     | VARCHAR(08) | Batch Name    |
 | @p_qualifier     | VARCHAR(30) | Qualifier     |
 | @p_activity_date | DATETIME    | Activity Date |
@@ -1048,8 +1060,9 @@ The procedure performs the update in the following steps:
 
 ##### Calling Arguments
 
-| @p_user_id       | VARCHAR(30) | User ID       |
+| Parameter        | Data Type   | Desription    |
 |------------------|-------------|---------------|
+| @p_user_id       | VARCHAR(30) | User ID       |
 | @p_batchname     | VARCHAR(08) | Batch Name    |
 | @p_qualifier     | VARCHAR(30) | Qualifier     |
 | @p_activity_date | DATETIME    | Activity Date |
@@ -1134,8 +1147,9 @@ The procedure loads the employee pay elements as follows:
 
 ##### Calling Arguments
 
-| @p_user_id       | VARCHAR(30) | User ID       |
+| Parameter        | Data Type   | Desription    |
 |------------------|-------------|---------------|
+| @p_user_id       | VARCHAR(30) | User ID       |
 | @p_batchname     | VARCHAR(08) | Batch Name    |
 | @p_qualifier     | VARCHAR(30) | Qualifier     |
 | @p_activity_date | DATETIME    | Activity Date |
@@ -1202,8 +1216,9 @@ The program will update the employee employment record as follows:
 
 ##### Calling Arguments
 
-| @p_user_id       | VARCHAR(30) | User ID       |
+| Parameter        | Data Type   | Desription    |
 |------------------|-------------|---------------|
+| @p_user_id       | VARCHAR(30) | User ID       |
 | @p_batchname     | VARCHAR(08) | Batch Name    |
 | @p_qualifier     | VARCHAR(30) | Qualifier     |
 | @p_activity_date | DATETIME    | Activity Date |
@@ -1271,8 +1286,9 @@ The program will update the employee employment record as follows:
 
 ##### Calling Arguments
 
-| @p_user_id       | VARCHAR(30) | User ID       |
+| Parameter        | Data Type   | Desription    |
 |------------------|-------------|---------------|
+| @p_user_id       | VARCHAR(30) | User ID       |
 | @p_batchname     | VARCHAR(08) | Batch Name    |
 | @p_qualifier     | VARCHAR(30) | Qualifier     |
 | @p_activity_date | DATETIME    | Activity Date |
@@ -1349,8 +1365,9 @@ The program will update the employee assignment records as follows:
 
 ##### Calling Arguments
 
-| @p_user_id | VARCHAR(30) | User ID |
-|------------|-------------|---------|
+| Parameter        | Data Type   | Desription    |
+|------------------|-------------|---------------|
+| @p_user_id       | VARCHAR(30) | User ID       |
 
 ##### Description
 
@@ -1406,278 +1423,60 @@ the SmartStream Job Scheduler.
 
 ##### Schema:
 
-<table>
-<colgroup>
-<col style="width: 50%" />
-<col style="width: 0%" />
-<col style="width: 32%" />
-<col style="width: 16%" />
-</colgroup>
-<thead>
-<tr class="header">
-<th colspan="2">Column Name</th>
-<th>Data Type</th>
-<th>Nullable</th>
-</tr>
-</thead>
-<tbody>
-<tr class="odd">
-<td colspan="2">event_id</td>
-<td>char(2)</td>
-<td>NULL</td>
-</tr>
-<tr class="even">
-<td colspan="2">emp_id</td>
-<td>char(15)</td>
-<td>NULL</td>
-</tr>
-<tr class="odd">
-<td colspan="2">eff_date</td>
-<td>char(10)</td>
-<td>NULL</td>
-</tr>
-<tr class="even">
-<td colspan="2">first_name</td>
-<td>char(25)</td>
-<td>NULL</td>
-</tr>
-<tr class="odd">
-<td colspan="2">first_middle_name</td>
-<td>char(25)</td>
-<td>NULL</td>
-</tr>
-<tr class="even">
-<td colspan="2">last_name</td>
-<td>char(30)</td>
-<td>NULL</td>
-</tr>
-<tr class="odd">
-<td colspan="2">empl_id</td>
-<td>char(10)</td>
-<td>NULL</td>
-</tr>
-<tr class="even">
-<td colspan="2">national_id_type_code</td>
-<td>char(5)</td>
-<td>NULL</td>
-</tr>
-<tr class="odd">
-<td colspan="2">national_id</td>
-<td>char(20)</td>
-<td>NULL</td>
-</tr>
-<tr class="even">
-<td colspan="2">organization_group_id</td>
-<td>char(5)</td>
-<td>NULL</td>
-</tr>
-<tr class="odd">
-<td colspan="2">organization_chart_name</td>
-<td>char(64)</td>
-<td>NULL</td>
-</tr>
-<tr class="even">
-<td colspan="2">organization_unit_name</td>
-<td>char(240)</td>
-<td>NULL</td>
-</tr>
-<tr class="odd">
-<td colspan="2">emp_status_classn_code</td>
-<td>char(2)</td>
-<td>NULL</td>
-</tr>
-<tr class="even">
-<td colspan="2">position_title</td>
-<td>char(60)</td>
-<td>NULL</td>
-</tr>
-<tr class="odd">
-<td colspan="2">employment_type_code</td>
-<td>varchar(70)</td>
-<td>NULL</td>
-</tr>
-<tr class="even">
-<td colspan="2">annual_salary_amt</td>
-<td>char(15)</td>
-<td>NULL</td>
-</tr>
-<tr class="odd">
-<td colspan="2">begin_date</td>
-<td>char(10)</td>
-<td>NULL</td>
-</tr>
-<tr class="even">
-<td colspan="2">end_date</td>
-<td>char(10)</td>
-<td>NULL</td>
-</tr>
-<tr class="odd">
-<td colspan="2">pay_status_code</td>
-<td>char(1)</td>
-<td>NULL</td>
-</tr>
-<tr class="even">
-<td colspan="2">pay_group_id</td>
-<td>char(10)</td>
-<td>NULL</td>
-</tr>
-<tr class="odd">
-<td colspan="2">pay_element_ctrl_grp_id</td>
-<td>char(10)</td>
-<td>NULL</td>
-</tr>
-<tr class="even">
-<td colspan="2">time_reporting_meth_code</td>
-<td>char(1)</td>
-<td>NULL</td>
-</tr>
-<tr class="odd">
-<td colspan="2">employment_info_chg_reason_cd</td>
-<td>char(5)</td>
-<td>NULL</td>
-</tr>
-<tr class="even">
-<td colspan="2">emp_location_code</td>
-<td>char(10)</td>
-<td>NULL</td>
-</tr>
-<tr class="odd">
-<td colspan="2">emp_status_code</td>
-<td>char(2)</td>
-<td>NULL</td>
-</tr>
-<tr class="even">
-<td colspan="2">reason_code</td>
-<td>char(2)</td>
-<td>NULL</td>
-</tr>
-<tr class="odd">
-<td colspan="2">emp_expected_return_date</td>
-<td>char(10)</td>
-<td>NULL</td>
-</tr>
-<tr class="even">
-<td colspan="2">pay_through_date</td>
-<td>char(10)</td>
-<td>NULL</td>
-</tr>
-<tr class="odd">
-<td colspan="2">emp_death_date</td>
-<td>char(10)</td>
-<td>NULL</td>
-</tr>
-<tr class="even">
-<td colspan="2">consider_for_rehire_ind</td>
-<td>char(1)</td>
-<td>NULL</td>
-</tr>
-<tr class="odd">
-<td colspan="2">pay_element_id</td>
-<td>char(10)</td>
-<td>NULL</td>
-</tr>
-<tr class="even">
-<td colspan="2">emp_calculation</td>
-<td>char(15)</td>
-<td>NULL</td>
-</tr>
-<tr class="odd">
-<td colspan="2">tax_flag</td>
-<td>char(1)</td>
-<td>NULL</td>
-</tr>
-<tr class="even">
-<td colspan="2">nic_flag</td>
-<td>char(1)</td>
-<td>NULL</td>
-</tr>
-<tr class="odd">
-<td colspan="2">tax_ceiling_amt</td>
-<td>char(15)</td>
-<td>NULL</td>
-</tr>
-<tr class="even">
-<td colspan="2">labor_grp_code</td>
-<td>char(50)</td>
-<td>NULL</td>
-</tr>
-<tr class="odd">
-<td colspan="2">file_source</td>
-<td>char(50)</td>
-<td>NULL</td>
-</tr>
-<tr class="even">
-<td colspan="2">annual_hrs_per_fte</td>
-<td>varchar(255)</td>
-<td>NULL</td>
-</tr>
-<tr class="odd">
-<td colspan="2">annual_rate</td>
-<td>varchar(255)</td>
-<td>NULL</td>
-</tr>
-<tr class="even">
-<td colspan="2">birth_date</td>
-<td>varchar(255)</td>
-<td>NULL</td>
-</tr>
-<tr class="odd">
-<td colspan="2">gender</td>
-<td>varchar(255)</td>
-<td>NULL</td>
-</tr>
-<tr class="even">
-<td colspan="2">country_code</td>
-<td>varchar(255)</td>
-<td>NULL</td>
-</tr>
-<tr class="odd">
-<td colspan="2">addr_line_1</td>
-<td>varchar(255)</td>
-<td>NULL</td>
-</tr>
-<tr class="even">
-<td colspan="2">addr_line_2</td>
-<td>varchar(255)</td>
-<td>NULL</td>
-</tr>
-<tr class="odd">
-<td colspan="2">addr_line_3</td>
-<td>varchar(255)</td>
-<td>NULL</td>
-</tr>
-<tr class="even">
-<td colspan="2">addr_line_4</td>
-<td>varchar(255)</td>
-<td>NULL</td>
-</tr>
-<tr class="odd">
-<td colspan="2">city_name</td>
-<td>varchar(255)</td>
-<td>NULL</td>
-</tr>
-<tr class="even">
-<td colspan="2">state_prov</td>
-<td>varchar(255)</td>
-<td>NULL</td>
-</tr>
-<tr class="odd">
-<td colspan="2">postal_code</td>
-<td>varchar(255)</td>
-<td>NULL</td>
-</tr>
-<tr class="even">
-<td colspan="2">county_name</td>
-<td>varchar(255)</td>
-<td>NULL</td>
-</tr>
-<tr class="odd">
-<td colspan="2">region_name</td>
-<td>varchar(255)</td>
-<td>NULL</td>
-</tr>
-</tbody>
-</table>
+| Column Name                   | Data Type    | Nullable |
+| ---                           | ---          | ---      |
+| event_id                      | char(2)      | NULL     |
+| emp_id                        | char(15)     | NULL     |
+| eff_date                      | char(10)     | NULL     |
+| first_name                    | char(25)     | NULL     |
+| first_middle_name             | char(25)     | NULL     |
+| last_name                     | char(30)     | NULL     |
+| empl_id                       | char(10)     | NULL     |
+| national_id_type_code         | char(5)      | NULL     |
+| national_id                   | char(20)     | NULL     |
+| organization_group_id         | char(5)      | NULL     |
+| organization_chart_name       | char(64)     | NULL     |
+| organization_unit_name        | char(240)    | NULL     |
+| emp_status_classn_code        | char(2)      | NULL     |
+| position_title                | char(60)     | NULL     |
+| employment_type_code          | varchar(70)  | NULL     |
+| annual_salary_amt             | char(15)     | NULL     |
+| begin_date                    | char(10)     | NULL     |
+| end_date                      | char(10)     | NULL     |
+| pay_status_code               | char(1)      | NULL     |
+| pay_group_id                  | char(10)     | NULL     |
+| pay_element_ctrl_grp_id       | char(10)     | NULL     |
+| time_reporting_meth_code      | char(1)      | NULL     |
+| employment_info_chg_reason_cd | char(5)      | NULL     |
+| emp_location_code             | char(10)     | NULL     |
+| emp_status_code               | char(2)      | NULL     |
+| reason_code                   | char(2)      | NULL     |
+| emp_expected_return_date      | char(10)     | NULL     |
+| pay_through_date              | char(10)     | NULL     |
+| emp_death_date                | char(10)     | NULL     |
+| consider_for_rehire_ind       | char(1)      | NULL     |
+| pay_element_id                | char(10)     | NULL     |
+| emp_calculation               | char(15)     | NULL     |
+| tax_flag                      | char(1)      | NULL     |
+| nic_flag                      | char(1)      | NULL     |
+| tax_ceiling_amt               | char(15)     | NULL     |
+| labor_grp_code                | char(50)     | NULL     |
+| file_source                   | char(50)     | NULL     |
+| annual_hrs_per_fte            | varchar(255) | NULL     |
+| annual_rate                   | varchar(255) | NULL     |
+| birth_date                    | varchar(255) | NULL     |
+| gender                        | varchar(255) | NULL     |
+| country_code                  | varchar(255) | NULL     |
+| addr_line_1                   | varchar(255) | NULL     |
+| addr_line_2                   | varchar(255) | NULL     |
+| addr_line_3                   | varchar(255) | NULL     |
+| addr_line_4                   | varchar(255) | NULL     |
+| city_name                     | varchar(255) | NULL     |
+| state_prov                    | varchar(255) | NULL     |
+| postal_code                   | varchar(255) | NULL     |
+| county_name                   | varchar(255) | NULL     |
+| region_name                   | varchar(255) | NULL     |
+
 
 #####
 
@@ -1722,8 +1521,6 @@ This table will log validation errors of the HCM Data Extract.
 Clustered Index DBShrpn.dbo.idx_cl_ghr_historical_message
 
 -   activity_date
-
-<!-- -->
 
 -   aud_id
 
@@ -1811,8 +1608,9 @@ Non-clusterd Index idx_ncl_ghr_employee_events_aud
 
 ##### Calling Arguments:
 
-| @p_file_source | VARCHAR(50) | File Source (‘SS GANYMEDE’ or ‘SS VENUS’ |
+| Parameter      | Data Type   | Description                              |
 |----------------|-------------|------------------------------------------|
+| @p_file_source | VARCHAR(50) | File Source (‘SS GANYMEDE’ or ‘SS VENUS’ |
 | @p_empl_id     | CHAR(10)    | Employer ID                              |
 
 ##### Description
@@ -1833,8 +1631,9 @@ value’s data type is char(10).
 
 ##### Calling Arguments
 
-| @p_file_source | VARCHAR(50) | File Source (‘SS GANYMEDE’ or ‘SS VENUS’ |
+| Parameter      | Data Type   | Description                              |
 |----------------|-------------|------------------------------------------|
+| @p_file_source | VARCHAR(50) | File Source (‘SS GANYMEDE’ or ‘SS VENUS’ |
 | @p_emp_id      | CHAR(15)    | Employee ID                              |
 
 ##### Description
@@ -1990,8 +1789,9 @@ determined by filtering the table as follows:
 
 ##### Filters:
 
-| Next Effective Date | = ‘12/31/2999 |
+| Column              | Condition     |
 |---------------------|---------------|
+| Next Effective Date | = '12/31/2999 |
 
 ##### Schema:
 

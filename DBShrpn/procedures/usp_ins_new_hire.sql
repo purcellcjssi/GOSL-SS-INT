@@ -37,14 +37,17 @@ GO
             , @p_activity_date   = @w_activity_date
 
 
-   Revision history:
-   version  date        developer   SCR         description
-   -------  ----------  ---------   -----       ------------------------------------
-   1.0.00   08/27/2025  CJP                     - Cloned from GOG version
-   1.0.01   05/18/2026  CJP                     - Commit Error
+    Revision history:
+    version date        developer   SCR         description
+    ------- ----------  ---------   -----       ------------------------------------
+    1.0.00  08/27/2025  CJP                     - Cloned from GOG version
+    1.0.01  05/18/2026  CJP                     - Commit Error
                                                     1) Updated employer id validation to skip record if invalid
                                                         - default setting handled in usp_sel_employee_events
             06/18/2026  CJP                         3) Added logic if pay group id is invalid, default to '99999'
+      07/20/2026  CJP                     - Phase III
+                                                    1) Added columns pay_frequency_code, pay_rate_type_code, and pay_sched_code
+                                                    2) Update salary setup logic to use pay frequency code
 
 ************************************************************************************/
 
@@ -255,7 +258,9 @@ BEGIN
     DECLARE @postal_code                            char(09)
     DECLARE @county_name                            varchar(255)
     DECLARE @region_name                            varchar(255)
-
+    DECLARE @pay_frequency_code                     char(01)    -- cjp 7/20/26
+    DECLARE @pay_rate_type_code                     char(01)    -- cjp 7/20/26
+    DECLARE @pay_sched_code                         char(01)    -- cjp 7/20/26
 
 
     CREATE TABLE #tbl_ghr_msg
@@ -311,6 +316,11 @@ BEGIN
              , t.postal_code
              , t.county_name
              , t.region_name
+
+             , t.pay_frequency_code     -- cjp 7/20/26
+             , t.pay_rate_type_code     -- cjp 7/20/26
+             , t.pay_sched_code         -- cjp 7/20/26
+
              , t.job_or_pos_id
         FROM #ghr_employee_events_temp t
         WHERE (event_id = @v_EVENT_ID_NEW_HIRE)
@@ -360,6 +370,11 @@ BEGIN
             , @postal_code
             , @county_name
             , @region_name
+
+            , @pay_frequency_code     -- cjp 7/20/26
+            , @pay_rate_type_code     -- cjp 7/20/26
+            , @pay_sched_code         -- cjp 7/20/26
+
             , @w_job_or_pos_id
 
 
@@ -916,7 +931,16 @@ BEGIN
                 ---------------------------------------------------------------------------
                 -- Universally setup all associates as monthly; 8 hrs/day; 40 hrs/week
                 -- Indicates that the associate is setup as annually
-                IF (@pay_rate = @annual_rate)
+
+                -- Pay Rate Type Code:
+                -- 1 - Hourly
+                -- 2 - Annual Salary - Not Used - Will setup as monthly if code is used
+                -- 3 - Monthly Salary
+                -- Monthly Salary
+                IF (
+                    (@pay_frequency_code = '3') OR
+                    (@pay_frequency_code = '2')
+                   )
                     SELECT @w_annual_salary_amt       = @pay_rate
                          , @w_pay_basis_code          = '2'     -- Period Salary
                          , @w_pd_salary_amt           = ROUND(@pay_rate / 12, 2)
@@ -1251,6 +1275,11 @@ BYPASS_EMPLOYEE:
                 , @postal_code
                 , @county_name
                 , @region_name
+
+                , @pay_frequency_code     -- cjp 7/20/26
+                , @pay_rate_type_code     -- cjp 7/20/26
+                , @pay_sched_code         -- cjp 7/20/26
+
                 , @w_job_or_pos_id
 
         END  -- Error Loop

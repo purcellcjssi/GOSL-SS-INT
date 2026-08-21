@@ -64,6 +64,9 @@ GO
                                                        - If blank then default employer id based on file source (SS VENUS vs SS GANYMEDE)
             6/10/2026   CJP                         4) Added employee employment audit table inicator lookup
                                                         - Used for labor group and pay group change events
+    1.0.02  07/20/2026  CJP                     - Phase III
+                                                    1) Added columns pay frequency, pay rate type and pay schedule code to temp table
+                                                    2) Enabled salary change events to be processed in the interface
 
 ************************************************************************************/
 
@@ -163,18 +166,23 @@ BEGIN
     , annual_hrs_per_fte                    money               NULL    --varchar(255)        NULL
     , annual_rate                           money               NULL    --varchar(255)        NULL
     , birth_date                            datetime            NULL    --varchar(255)        NULL
-    , gender                                char(01)        NULL
+    , gender                                char(01)            NULL
     , addr_fmt_code                         char(06)            NULL
-    , country_code                          char(02)        NULL
-    , addr_line_1                           varchar(35)        NULL
-    , addr_line_2                           varchar(35)        NULL
-    , addr_line_3                           varchar(35)        NULL
-    , addr_line_4                           varchar(35)        NULL
-    , city_name                             varchar(35)        NULL
-    , state_prov                            char(09)        NULL
-    , postal_code                           char(09)        NULL
+    , country_code                          char(02)            NULL
+    , addr_line_1                           varchar(35)         NULL
+    , addr_line_2                           varchar(35)         NULL
+    , addr_line_3                           varchar(35)         NULL
+    , addr_line_4                           varchar(35)         NULL
+    , city_name                             varchar(35)         NULL
+    , state_prov                            char(09)            NULL
+    , postal_code                           char(09)            NULL
     , county_name                           varchar(255)        NULL
     , region_name                           varchar(255)        NULL
+
+    , pay_frequency_code                    char(01)            NULL    -- cjp 7/20/26
+    , pay_rate_type_code                    char(01)            NULL    -- cjp 7/20/26
+    , pay_sched_code                        char(01)            NULL    -- cjp 7/20/26
+
     , job_or_pos_id                         char(10)            NULL    -- derived value based on file_source
     )
 
@@ -283,6 +291,11 @@ BEGIN
         , postal_code
         , county_name
         , region_name
+
+        , pay_frequency_code    -- cjp 7/20/26
+        , pay_rate_type_code    -- cjp 7/20/26
+        , pay_sched_code    -- cjp 7/20/26
+
         , job_or_pos_id
         )
         SELECT LEFT(t.event_id, 2) AS event_id
@@ -358,6 +371,11 @@ BEGIN
             , LEFT(t.postal_code, 9) AS postal_code
             , LEFT(t.county_name, 255) AS county_name
             , LEFT(t.region_name, 255) AS region_name
+
+            , t.pay_frequency_code      -- cjp 7/20/26
+            , t.pay_rate_type_code      -- cjp 7/20/26
+            , t.pay_sched_code          -- cjp 7/20/26
+
             , DBShrpn.dbo.ufn_ret_job_or_pos_id(t.file_source, t.empl_id) AS job_or_pos_id
         FROM DBShrpn.dbo.ghr_employee_events t
         --WHERE (t.event_id <> @v_EVENT_ID_SALARY_CHANGE)  -- Exclude Salary Changes
@@ -464,6 +482,11 @@ BEGIN
             , t.postal_code
             , t.county_name
             , t.region_name
+
+            , t.pay_frequency_code      -- cjp 7/20/26
+            , t.pay_rate_type_code      -- cjp 7/20/26
+            , t.pay_sched_code          -- cjp 7/20/26
+
             , t.job_or_pos_id
             , @w_activity_date                                              AS activity_date
             , t.aud_id
@@ -513,7 +536,7 @@ BEGIN
 
         END
 
-/*
+
         -- GOSL: Salaries are not interfaced into SS. Will be managed manually by user
         ---------------------------------------------------------------------------
         -- Salary Change (Event 02)
@@ -536,7 +559,7 @@ BEGIN
                     @w_activity_status,
                     @w_status
         END
-*/
+
 
 
         ---------------------------------------------------------------------------
