@@ -56,6 +56,12 @@ GO
    version  date        developer   SCR         description
    -------  ----------  ---------   -----       ------------------------------------
    1.0.00   08/27/2025  CJP                     - Created 10/10/2025
+   1.0.01   08/27/2026  CJP                     - Phase III
+                                                    1) Added fields msg_p1 and msg_p2 to report output
+                                                    2) Changed 'Bad' to 'Failed' to match the error message description
+            09/02/2026  CJP                         3) Added server_name column
+                                                    4) Added change event statistic counts by activity status
+                                                    5) Moved statistic counts to column msg_p1
 
 ************************************************************************************/
 CREATE procedure dbo.usp_verification_rpt_csv
@@ -88,6 +94,7 @@ BEGIN
     CREATE TABLE #tbl_vhcmrpt
     (
       row_id                                int	IDENTITY(1,1)       NOT NULL
+    , server_name                           varchar(255)            NOT NULL
     , activity_date                         varchar(255)            NOT NULL
     , event_id                              varchar(255)            NOT NULL
     , event_desc                            varchar(255)            NOT NULL
@@ -110,6 +117,8 @@ BEGIN
     , proc_flag                             varchar(255)            NOT NULL
     , msg_id                                varchar(255)            NOT NULL
     , msg_desc                              varchar(255)            NOT NULL
+    , msg_p1                                varchar(255)            NOT NULL
+    , msg_p2                                varchar(255)            NOT NULL
     )
 
     -- Table used to translate event ids and return event counts for all events
@@ -162,7 +171,8 @@ BEGIN
     ---------------------------------------------------------------------------
     INSERT INTO #tbl_vhcmrpt
     VALUES (
-             'Activity Date'                                            -- activity_date
+             'Server Name'                                              -- server_name
+           , 'Activity Date'                                            -- activity_date
            , 'Event ID'                                                 -- event_id
            , 'Event Description'                                        -- event_desc
            , 'Activity Status'                                          -- activity_status
@@ -184,6 +194,8 @@ BEGIN
            , 'Process Flag'                                             -- proc_flag
            , 'Error Message ID'                                         -- msg_id
            , 'Error Message Description'                                -- msg_desc
+           , 'Error Message Parameter 1'                                -- msg_p1
+           , 'Error Message Parameter 2'                                -- msg_p2
            )
 
 
@@ -191,7 +203,8 @@ BEGIN
     -- Retrieve records from error log that do not have a matching record in audit table
     ---------------------------------------------------------------------------
     INSERT INTO #tbl_vhcmrpt
-    SELECT CONVERT(char, msg.activity_date, 121)                        -- activity_date
+    SELECT @@SERVERNAME                                                 -- server_name
+         , CONVERT(char, msg.activity_date, 121)                        -- activity_date
          , msg.event_id                                                 -- event_id
          , '' AS event_desc                                             -- event_desc
          , msg.activity_status                                          -- activity_status
@@ -213,6 +226,8 @@ BEGIN
          , ''                                                           -- proc_flag
          , msg.msg_id                                                   -- msg_id
          , msg.msg_desc                                                 -- msg_desc
+         , msg.msg_p1                                                   -- msg_p1
+         , msg.msg_p2                                                   -- msg_p2
     FROM DBShrpn.dbo.ghr_historical_message msg
     LEFT JOIN DBShrpn.dbo.ghr_employee_events_aud aud ON
             (msg.activity_date = aud.activity_date) AND
@@ -225,7 +240,8 @@ BEGIN
     -- Retrieve imported records with errors
     ---------------------------------------------------------------------------
     INSERT INTO #tbl_vhcmrpt
-    SELECT CONVERT(char, aud.activity_date, 121) AS activity_date
+    SELECT @@SERVERNAME                                                 -- server_name
+         , CONVERT(char, aud.activity_date, 121) AS activity_date
          , aud.event_id
          , evt.event_desc
          , CASE WHEN (msg.activity_status IS NULL)
@@ -242,7 +258,9 @@ BEGIN
                        END
              ELSE CASE msg.activity_status
                     WHEN @v_ACTIVITY_STATUS_WARNING THEN 'Warning'
-                    WHEN @v_ACTIVITY_STATUS_BAD THEN 'Bad'
+                    WHEN @v_ACTIVITY_STATUS_BAD THEN 'Failed'   -- CJP 8/27/2026 Changed from 'Bad' to 'Failed' to match the error message description
+                    WHEN @v_ACTIVITY_STATUS_UNPROCESSED THEN 'Unprocessed'
+                    WHEN @v_ACTIVITY_STATUS_GOOD THEN 'Good'
                     ELSE 'None'
                   END
            END activity_status_desc
@@ -263,6 +281,8 @@ BEGIN
 		 , aud.proc_flag
          , ISNULL(msg.msg_id, '') AS msg_id
          , ISNULL(msg.msg_desc, '') AS msg_desc
+         , ISNULL(msg.msg_p1, '') AS msg_p1
+         , ISNULL(msg.msg_p2, '') AS msg_p2
     FROM DBShrpn.dbo.ghr_employee_events_aud aud
     JOIN #tbl_event evt ON
             (aud.event_id = evt.event_id)
@@ -282,31 +302,76 @@ BEGIN
 
 
     ---------------------------------------------------------------------------
+    -- Log Interface Statistics - count by event id and activity status
+    ---------------------------------------------------------------------------
+    -- CJP 9/2/2026
+    INSERT INTO #tbl_vhcmrpt
+    SELECT @@SERVERNAME                                                 -- server_name
+         , CONVERT(char, @w_activity_date, 121)                         -- activity_date
+         , t.event_id                                                   -- event_id
+         , t.event_desc + ' Statistics'                                 -- event_desc
+         , t.activity_status                                            -- activity_status
+         , t.activity_status_desc                                       -- activity_status_desc
+         , ''                                                           -- emp_id
+         , ''                                                           -- aud_id
+         , CONVERT(char, @w_activity_date, 121)                         -- eff_date
+         , ''                                                           -- first_name
+         , ''                                                           -- last_name
+         , ''                                                           -- empl_id
+         , ''                                                           -- pay_group_id
+         , ''                                                           -- job_or_pos_id
+         , ''                                                           -- position_title
+         , ''                                                           -- emp_status_code
+         , ''                                                           -- pay_element_id
+         , '0.00'                                                       -- emp_calculation
+         , @v_END_OF_TIME_STR                                           -- begin_date
+         , @v_END_OF_TIME_STR                                           -- end_date
+         , ''                                                           -- proc_flag
+         , 'U00123'                                                     -- msg_id
+         , t.event_desc + ' ' + t.activity_status_desc + ' Status Count:' -- msg_desc
+         , CONVERT(varchar, COUNT(t.event_id))                          -- msg_p1
+         , ''                                                           -- msg_p2
+    FROM #tbl_vhcmrpt t
+    JOIN #tbl_event evt ON
+            (t.event_id = evt.event_id)
+    GROUP BY evt.event_seq_id
+           , t.event_id
+           , t.event_desc
+           , t.activity_status
+           , t.activity_status_desc
+    ORDER BY evt.event_seq_id
+           , t.activity_status
+
+
+    ---------------------------------------------------------------------------
     -- Log Interface Statistics (i.e. event type counts)
     ---------------------------------------------------------------------------
     INSERT INTO #tbl_vhcmrpt
-    SELECT CONVERT(char, @w_activity_date, 121)                            -- activity_date
-            , evt.event_id                                                 -- event_id
-            , evt.event_desc + ' Statistics'                            -- event_desc
-            , ''                                                           -- activity_status
-            , ''                                                           -- activity_status_desc
-            , ''                                                           -- emp_id
-            , ''                                                           -- aud_id
-            , CONVERT(char, @w_activity_date, 121)                         -- eff_date
-            , ''                                                           -- first_name
-            , ''                                                           -- last_name
-            , ''                                                           -- empl_id
-            , ''                                                           -- pay_group_id
-            , ''                                                           -- job_or_pos_id
-            , ''                                                           -- position_title
-            , ''                                                           -- emp_status_code
-            , ''                                                           -- pay_element_id
-            , '0.00'                                                       -- emp_calculation
-            , @v_END_OF_TIME_STR                                           -- begin_date
-            , @v_END_OF_TIME_STR                                           -- end_date
-            , ''                                                           -- proc_flag
-            , 'U00123'                                                     -- msg_id
-            , evt.event_desc + ' Import Count: ' + CONVERT(varchar, count(laud.event_id)) -- msg_desc
+    SELECT @@SERVERNAME                                                 -- server_name
+         , CONVERT(char, @w_activity_date, 121)                            -- activity_date
+         , evt.event_id                                                 -- event_id
+         , evt.event_desc + ' Statistics'                               -- event_desc
+         , ''                                                           -- activity_status
+         , ''                                                           -- activity_status_desc
+         , ''                                                           -- emp_id
+         , ''                                                           -- aud_id
+         , CONVERT(char, @w_activity_date, 121)                         -- eff_date
+         , ''                                                           -- first_name
+         , ''                                                           -- last_name
+         , ''                                                           -- empl_id
+         , ''                                                           -- pay_group_id
+         , ''                                                           -- job_or_pos_id
+         , ''                                                           -- position_title
+         , ''                                                           -- emp_status_code
+         , ''                                                           -- pay_element_id
+         , '0.00'                                                       -- emp_calculation
+         , @v_END_OF_TIME_STR                                           -- begin_date
+         , @v_END_OF_TIME_STR                                           -- end_date
+         , ''                                                           -- proc_flag
+         , 'U00123'                                                     -- msg_id
+         , evt.event_desc + ' Import Count: '                           -- msg_desc
+         , CONVERT(varchar, count(laud.event_id))                       -- msg_p1
+         , ''                                                           -- msg_p2
     FROM #tbl_event evt
     LEFT JOIN (
                SELECT aud.event_id
@@ -324,28 +389,31 @@ BEGIN
     -- Log total records imported
     ---------------------------------------------------------------------------
     INSERT INTO #tbl_vhcmrpt
-    SELECT CONVERT(char, @w_activity_date, 121)                            -- activity_date
-            , ''                                                           -- event_id
-            , 'Statistics'                                                 -- event_desc
-            , ''                                                           -- activity_status
-            , ''                                                           -- activity_status_desc
-            , ''                                                           -- emp_id
-            , ''                                                           -- aud_id
-            , CONVERT(char, @w_activity_date, 121)                         -- eff_date
-            , ''                                                           -- first_name
-            , ''                                                           -- last_name
-            , ''                                                           -- empl_id
-            , ''                                                           -- pay_group_id
-            , ''                                                           -- job_or_pos_id
-            , ''                                                           -- position_title
-            , ''                                                           -- emp_status_code
-            , ''                                                           -- pay_element_id
-            , '0.00'                                                       -- emp_calculation
-            , @v_END_OF_TIME_STR                                           -- begin_date
-            , @v_END_OF_TIME_STR                                           -- end_date
-            , ''                                                           -- proc_flag
-            , 'U00123'                                                     -- msg_id
-            , 'Total Records Imported: ' + CONVERT(varchar, count(*))      -- msg_desc
+    SELECT @@SERVERNAME                                                 -- server_name
+         , CONVERT(char, @w_activity_date, 121)                         -- activity_date
+         , ''                                                           -- event_id
+         , 'Statistics'                                                 -- event_desc
+         , ''                                                           -- activity_status
+         , ''                                                           -- activity_status_desc
+         , ''                                                           -- emp_id
+         , ''                                                           -- aud_id
+         , CONVERT(char, @w_activity_date, 121)                         -- eff_date
+         , ''                                                           -- first_name
+         , ''                                                           -- last_name
+         , ''                                                           -- empl_id
+         , ''                                                           -- pay_group_id
+         , ''                                                           -- job_or_pos_id
+         , ''                                                           -- position_title
+         , ''                                                           -- emp_status_code
+         , ''                                                           -- pay_element_id
+         , '0.00'                                                       -- emp_calculation
+         , @v_END_OF_TIME_STR                                           -- begin_date
+         , @v_END_OF_TIME_STR                                           -- end_date
+         , ''                                                           -- proc_flag
+         , 'U00123'                                                     -- msg_id
+         , 'Total Records Imported: '                                   -- msg_desc
+         , CONVERT(varchar, count(*))                                   -- msg_p1
+         , ''                                                           -- msg_p2
     FROM DBShrpn.dbo.ghr_employee_events_aud aud
     WHERE (aud.activity_date = @w_activity_date)
 
@@ -353,7 +421,8 @@ BEGIN
     ---------------------------------------------------------------------------
     -- Output results
     ---------------------------------------------------------------------------
-    SELECT activity_date
+    SELECT server_name
+         , activity_date
          , event_id
          , event_desc
          , activity_status
@@ -375,6 +444,8 @@ BEGIN
          , proc_flag
          , msg_id
          , msg_desc
+         , msg_p1
+         , msg_p2
     FROM #tbl_vhcmrpt
     ORDER BY row_id
 

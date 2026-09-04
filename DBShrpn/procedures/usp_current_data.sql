@@ -17,11 +17,40 @@ END
 GO
 
 
+/*************************************************************************************
+    SP Name:       usp_current_data
+
+    Description: Audit report to retrieve current employee data then compared to HCM Cloud Suite
+
+
+    Parameters:
+        None
+
+
+    Example:
+        EXEC DBShrpn.dbo.usp_current_data
+
+
+
+   Revision history:
+   version  date        developer   SCR         description
+   -------  ----------  ---------   -----       ------------------------------------
+   1.0.00   08/27/2025  CJP                     - Cloned from GOG version
+   2.0.00   09/02/2026  CJP                     - Phase III
+                                                    1) Added variable to store @V_SYSTEM_DATE() insted of calling it multiple times
+                                                    2) Updated position title source to emp_assignment.user_text_2
+
+************************************************************************************/
+
 CREATE procedure dbo.usp_current_data
 AS
 BEGIN
 
     SET NOCOUNT ON
+
+
+    DECLARE @V_SYSTEM_DATE datetime = GETDATE()
+
 
     CREATE TABLE #ghr_current_temp1
     (
@@ -60,7 +89,7 @@ BEGIN
          , ee.empl_id
          , p.national_id_1_type_code
          , p.national_id_1
-         , p.user_text_1
+         , ea.user_text_2 AS Position_Title
          , ea.organization_unit_name
          , ea.annual_salary_amt
          , ee.time_reporting_meth_code
@@ -83,7 +112,7 @@ BEGIN
                         SELECT MAX(ee2.eff_date)
                         FROM DBShrpn.dbo.emp_employment ee2
                         WHERE ee2.emp_id = ee.emp_id
-                        AND ee2.eff_date <= GETDATE()
+                        AND ee2.eff_date <= @V_SYSTEM_DATE
                        ))
     JOIN DBShrpn.dbo.emp_assignment ea ON
         (ea.emp_id = e.emp_id) AND
@@ -92,17 +121,17 @@ BEGIN
                         FROM DBShrpn.dbo.emp_assignment ea2
                         WHERE ea2.emp_id = ea.emp_id
                         AND ea2.prime_assignment_ind = 'Y'
-                        AND ea2.eff_date <= GETDATE()
+                        AND ea2.eff_date <= @V_SYSTEM_DATE
                        )) AND
         (ea.prime_assignment_ind = 'Y') AND
-        (ea.end_date > GETDATE())
+        (ea.end_date > @V_SYSTEM_DATE)
     JOIN DBShrpn.dbo.emp_status es ON
         (es.emp_id = e.emp_id) AND
         (es.status_change_date = (
                                     SELECT MAX(es2.status_change_date)
                                     FROM DBShrpn.dbo.emp_status es2
                                     WHERE es2.emp_id = es.emp_id
-                                    AND es2.status_change_date <= GETDATE()
+                                    AND es2.status_change_date <= @V_SYSTEM_DATE
                                     ))
     LEFT JOIN DBShrpn.dbo.pos_title pt ON
         (pt.pos_id = ea.job_or_pos_id) AND
@@ -110,7 +139,7 @@ BEGIN
                         SELECT MAX(pt2.eff_date)
                         FROM DBShrpn.dbo.pos_title pt2
                         WHERE pt2.pos_id = pt.pos_id
-                        AND pt2.eff_date <= GETDATE()
+                        AND pt2.eff_date <= @V_SYSTEM_DATE
                        ))
     LEFT JOIN DBShrpn.dbo.job_title jt ON
         (jt.job_id = ea.job_or_pos_id) AND
@@ -118,7 +147,7 @@ BEGIN
                         SELECT MAX(jt2.eff_date)
                         FROM DBShrpn.dbo.job_title jt2
                         WHERE jt2.job_id = jt.job_id
-                        AND jt2.eff_date <= GETDATE()
+                        AND jt2.eff_date <= @V_SYSTEM_DATE
                        ))
 
 
@@ -133,7 +162,7 @@ BEGIN
          , ee.empl_id
          , p.national_id_1_type_code
          , p.national_id_1
-         , p.user_text_1
+         , ea.user_text_2 AS Position_Title
          , ea.organization_unit_name
          , ea.annual_salary_amt
          , ee.time_reporting_meth_code
@@ -156,7 +185,7 @@ BEGIN
                         SELECT MAX(eff_date)
                         FROM DBShrpn.dbo.emp_employment t
                         WHERE t.emp_id = ee.emp_id
-                        AND t.eff_date <= GETDATE()
+                        AND t.eff_date <= @V_SYSTEM_DATE
                        ))
     JOIN DBShrpn.dbo.emp_assignment ea ON
         (ea.emp_id = e.emp_id) AND
@@ -165,17 +194,17 @@ BEGIN
                         FROM DBShrpn.dbo.emp_assignment ea2
                         WHERE ea2.emp_id = ea.emp_id
                         AND ea2.prime_assignment_ind = 'Y'
-                        AND ea2.eff_date <= GETDATE()
+                        AND ea2.eff_date <= @V_SYSTEM_DATE
                        )) AND
         (ea.prime_assignment_ind = 'Y') AND
-        (ea.end_date < GETDATE())
+        (ea.end_date < @V_SYSTEM_DATE)
     JOIN DBShrpn.dbo.emp_status es ON
         (es.emp_id = e.emp_id) AND
         (es.status_change_date = (
                                     SELECT MAX(es2.status_change_date)
                                     FROM DBShrpn.dbo.emp_status es2
                                     WHERE es2.emp_id = es.emp_id
-                                      AND es2.status_change_date <= GETDATE()
+                                      AND es2.status_change_date <= @V_SYSTEM_DATE
                                     ))
     LEFT JOIN DBShrpn.dbo.pos_title pt ON
         (pt.pos_id = ea.job_or_pos_id) AND
@@ -183,7 +212,7 @@ BEGIN
                         SELECT MAX(pt2.eff_date)
                         FROM DBShrpn.dbo.pos_title pt2
                         WHERE pt2.pos_id = pt.pos_id
-                        AND pt2.eff_date <= GETDATE()
+                        AND pt2.eff_date <= @V_SYSTEM_DATE
                        ))
     LEFT JOIN DBShrpn.dbo.job_title jt ON
         (jt.job_id = ea.job_or_pos_id) AND
@@ -191,7 +220,7 @@ BEGIN
                         SELECT MAX(jt2.eff_date)
                         FROM DBShrpn.dbo.job_title jt2
                         WHERE jt2.job_id = jt.job_id
-                        AND jt2.eff_date <= GETDATE()
+                        AND jt2.eff_date <= @V_SYSTEM_DATE
                        ))
     WHERE (e.emp_id NOT IN (
                             SELECT t.Employee_Number
