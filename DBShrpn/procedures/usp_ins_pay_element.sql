@@ -47,6 +47,8 @@ GO
                                                     3) Added begin tran and commit logic
                                                     4) Updated employer id validation to skip record if invalid
                                                         - default setting handled in usp_sel_employee_events
+    2.0.00  09/14/2026  CJP                     - Phase III
+                                                    1) Updated bad error messages to include 'bypassing record' in the description for clarity
 
 ************************************************************************************/
 
@@ -309,7 +311,7 @@ BEGIN
                             , @p_pay_element_id     = @pay_element_id
                             , @p_msg_p1             = @emp_calculation
                             , @p_msg_p2             = ''
-                            , @p_msg_desc           = 'Invalid pay element amount.'
+                            , @p_msg_desc           = 'Invalid pay element amount - bypassing record.'
                             , @p_activity_status    = @v_ACTIVITY_STATUS_BAD
                             , @p_activity_date      = @p_activity_date
                             , @p_audit_id           = @aud_id
@@ -347,7 +349,7 @@ BEGIN
                             , @p_pay_element_id     = @pay_element_id
                             , @p_msg_p1             = @emp_calculation
                             , @p_msg_p2             = ''
-                            , @p_msg_desc           = 'Invalid Effective Date'
+                            , @p_msg_desc           = 'Invalid Effective Date - bypassing record.'
                             , @p_activity_status    = @v_ACTIVITY_STATUS_BAD
                             , @p_activity_date      = @p_activity_date
                             , @p_audit_id           = @aud_id
@@ -379,7 +381,7 @@ BEGIN
                             , @p_pay_element_id     = @pay_element_id
                             , @p_msg_p1             = @begin_date
                             , @p_msg_p2             = ''
-                            , @p_msg_desc           = 'Invalid Begin Date'
+                            , @p_msg_desc           = 'Invalid Begin Date - bypassing record.'
                             , @p_activity_status    = @v_ACTIVITY_STATUS_BAD
                             , @p_activity_date      = @p_activity_date
                             , @p_audit_id           = @aud_id
@@ -411,7 +413,7 @@ BEGIN
                             , @p_pay_element_id     = @pay_element_id
                             , @p_msg_p1             = @end_date
                             , @p_msg_p2             = ''
-                            , @p_msg_desc           = 'Invalid End Date'
+                            , @p_msg_desc           = 'Invalid End Date - bypassing record.'
                             , @p_activity_status    = @v_ACTIVITY_STATUS_BAD
                             , @p_activity_date      = @p_activity_date
                             , @p_audit_id           = @aud_id
@@ -451,7 +453,7 @@ BEGIN
                             , @p_pay_element_id     = @pay_element_id
                             , @p_msg_p1             = @emp_calculation
                             , @p_msg_p2             = ''
-                            , @p_msg_desc           = 'Invalid Employee ID'
+                            , @p_msg_desc           = 'Invalid Employee ID - bypassing record.'
                             , @p_activity_status    = @v_ACTIVITY_STATUS_BAD
                             , @p_activity_date      = @p_activity_date
                             , @p_audit_id           = @aud_id
@@ -489,7 +491,7 @@ BEGIN
                             , @p_pay_element_id     = @pay_element_id
                             , @p_msg_p1             = @empl_id
                             , @p_msg_p2             = ''
-                            , @p_msg_desc           = 'Invalid Employer ID'
+                            , @p_msg_desc           = 'Invalid Employer ID - bypassing record.'
                             , @p_activity_status    = @v_ACTIVITY_STATUS_BAD
                             , @p_activity_date      = @p_activity_date
                             , @p_audit_id           = @aud_id
@@ -524,7 +526,7 @@ BEGIN
                             , @p_pay_element_id     = @pay_element_id
                             , @p_msg_p1             = @empl_id
                             , @p_msg_p2             = @w_cur_empl_id
-                            , @p_msg_desc           = 'Employer id from HCM does not match associate''s current employer id in SmartStream.'
+                            , @p_msg_desc           = 'Employer id from HCM does not match associate''s current employer id in SmartStream - bypassing record.'
                             , @p_activity_status    = @v_ACTIVITY_STATUS_BAD
                             , @p_activity_date      = @p_activity_date
                             , @p_audit_id           = @aud_id
@@ -579,7 +581,7 @@ BEGIN
                             , @p_pay_element_id     = @pay_element_id
                             , @p_msg_p1             = @emp_calculation
                             , @p_msg_p2             = ''
-                            , @p_msg_desc           = 'Invalid pay element id.'
+                            , @p_msg_desc           = 'Invalid pay element id - bypassing record.'
                             , @p_activity_status    = @v_ACTIVITY_STATUS_BAD
                             , @p_activity_date      = @p_activity_date
                             , @p_audit_id           = @aud_id
@@ -642,7 +644,7 @@ BEGIN
                             , @p_pay_element_id     = @pay_element_id
                             , @p_msg_p1             = @emp_calculation
                             , @p_msg_p2             = @w_msg_text_2
-                            , @p_msg_desc           = 'The new effective date must be greater than the current effective date.'
+                            , @p_msg_desc           = 'The new effective date must be greater than the current effective date - bypassing record.'
                             , @p_activity_status    = @v_ACTIVITY_STATUS_BAD
                             , @p_activity_date      = @p_activity_date
                             , @p_audit_id           = @aud_id
@@ -688,7 +690,7 @@ BEGIN
                             , @p_pay_element_id     = @pay_element_id
                             , @p_msg_p1             = @begin_date
                             , @p_msg_p2             = @w_msg_text_2
-                            , @p_msg_desc           = 'The Begin Date cannot be greater than the pay through date for employee.'
+                            , @p_msg_desc           = 'The Begin Date cannot be greater than the pay through date for employee - bypassing record.'
                             , @p_activity_status    = @v_ACTIVITY_STATUS_BAD
                             , @p_activity_date      = @p_activity_date
                             , @p_audit_id           = @aud_id
@@ -725,7 +727,7 @@ BEGIN
                             , @p_msg_p1             = @end_date
                             , @p_msg_p2             = ''
                             , @p_msg_desc           = 'The stop date must be greater or equal to the employee pay element effective date - Defaulting effective date to stop date.'
-                            , @p_activity_status    = @v_ACTIVITY_STATUS_BAD
+                            , @p_activity_status    = @v_ACTIVITY_STATUS_WARNING
                             , @p_activity_date      = @p_activity_date
                             , @p_audit_id           = @aud_id
 
@@ -895,7 +897,7 @@ BEGIN
                                 , @p_pay_element_id     = @pay_element_id
                                 , @p_msg_p1             = @begin_date
                                 , @p_msg_p2             = @w_msg_text_2
-                                , @p_msg_desc           = 'Stored Procedure DBShrpn.dbo.usp_ins_hepy_insert Returned an error.'
+                                , @p_msg_desc           = 'Stored Procedure DBShrpn.dbo.usp_ins_hepy_insert Returned an error - bypassing record.'
                                 , @p_activity_status    = @v_ACTIVITY_STATUS_BAD
                                 , @p_activity_date      = @p_activity_date
                                 , @p_audit_id           = @aud_id

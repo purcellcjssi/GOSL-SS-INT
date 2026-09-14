@@ -52,6 +52,8 @@ GO
    version  date        developer   SCR         description
    -------  ----------  ---------   -----       ------------------------------------
    1.0.00   08/27/2025  CJP                     - Cloned from GOG version
+    2.0.00  09/14/2026  CJP                     - Phase III
+                                                    1) Updated bad error messages to include 'bypassing record' in the description for clarity
 
 ************************************************************************************/
 
@@ -214,7 +216,7 @@ BEGIN
                             , @p_pay_element_id     = @v_EMPTY_SPACE
                             , @p_msg_p1             = @v_EMPTY_SPACE
                             , @p_msg_p2             = @v_EMPTY_SPACE
-                            , @p_msg_desc           = 'Invalid Effective Date'
+                            , @p_msg_desc           = 'Invalid Effective Date - bypassing record.'
                             , @p_activity_status    = @v_ACTIVITY_STATUS_BAD
                             , @p_activity_date      = @p_activity_date
                             , @p_audit_id           = @aud_id
@@ -258,7 +260,7 @@ BEGIN
                             , @p_pay_element_id     = @v_EMPTY_SPACE
                             , @p_msg_p1             = @v_EMPTY_SPACE
                             , @p_msg_p2             = @v_EMPTY_SPACE
-                            , @p_msg_desc           = 'Employee does not exist'
+                            , @p_msg_desc           = 'Employee does not exist - bypassing record.'
                             , @p_activity_status    = @v_ACTIVITY_STATUS_BAD
                             , @p_activity_date      = @p_activity_date
                             , @p_audit_id           = @aud_id

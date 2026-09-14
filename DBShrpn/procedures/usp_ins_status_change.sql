@@ -61,6 +61,8 @@ GO
             06/18/2026                              3) Fixed Labor Group update - emp_id was missing in where clause
                                                     4) Added logic if pay group id is invalid, default to '99999'
                                                     5) Disabled validation (U00036) for transfer date greater than position effective date since not applicable to GOSL
+    2.0.00  09/14/2026  CJP                     - Phase III
+                                                    1) Updated bad error messages to include 'bypassing record' in the description for clarity
 
 ************************************************************************************/
 
@@ -412,7 +414,7 @@ BEGIN
                             , @p_pay_element_id     = @v_EMPTY_SPACE
                             , @p_msg_p1             = @v_EMPTY_SPACE
                             , @p_msg_p2             = @v_EMPTY_SPACE
-                            , @p_msg_desc           = 'Invalid Effective Date'
+                            , @p_msg_desc           = 'Invalid Effective Date - bypassing record.'
                             , @p_activity_status    = @v_ACTIVITY_STATUS_BAD
                             , @p_activity_date      = @p_activity_date
                             , @p_audit_id           = @aud_id
@@ -501,7 +503,7 @@ BEGIN
                             , @p_pay_element_id     = @v_EMPTY_SPACE
                             , @p_msg_p1             = @v_EMPTY_SPACE
                             , @p_msg_p2             = @v_EMPTY_SPACE
-                            , @p_msg_desc           = 'Employee does not exist'
+                            , @p_msg_desc           = 'Employee does not exist - bypassing record.'
                             , @p_activity_status    = @v_ACTIVITY_STATUS_BAD
                             , @p_activity_date      = @p_activity_date
                             , @p_audit_id           = @aud_id
@@ -579,7 +581,7 @@ BEGIN
                             , @p_pay_element_id     = @v_EMPTY_SPACE
                             , @p_msg_p1             = @eff_date
                             , @p_msg_p2             = @w_msg_text_2
-                            , @p_msg_desc           = 'New Status Effective date must be greater than current effective date.'
+                            , @p_msg_desc           = 'New Status Effective date must be greater than current effective date - bypassing record.'
                             , @p_activity_status    = @v_ACTIVITY_STATUS_BAD
                             , @p_activity_date      = @p_activity_date
                             , @p_audit_id           = @aud_id
@@ -621,7 +623,7 @@ BEGIN
                             , @p_pay_element_id     = @v_EMPTY_SPACE
                             , @p_msg_p1             = @eff_date
                             , @p_msg_p2             = @w_msg_text_2
-                            , @p_msg_desc           = 'Transfer date must be greater than default position effective date.'
+                            , @p_msg_desc           = 'Transfer date must be greater than default position effective date - bypassing record.'
                             , @p_activity_status    = @v_ACTIVITY_STATUS_BAD
                             , @p_activity_date      = @p_activity_date
                             , @p_audit_id           = @aud_id
@@ -658,7 +660,7 @@ BEGIN
                             , @p_pay_element_id     = @v_EMPTY_SPACE
                             , @p_msg_p1             = @eff_date
                             , @p_msg_p2             = @w_msg_text_2
-                            , @p_msg_desc           = 'Rehire date must be greater than current employee employment effective date.'
+                            , @p_msg_desc           = 'Rehire date must be greater than current employee employment effective date - bypassing record.'
                             , @p_activity_status    = @v_ACTIVITY_STATUS_BAD
                             , @p_activity_date      = @p_activity_date
                             , @p_audit_id           = @aud_id
@@ -746,7 +748,7 @@ BEGIN
                                     , @p_pay_element_id     = @v_EMPTY_SPACE
                                     , @p_msg_p1             = @w_curr_status
                                     , @p_msg_p2             = @w_msg_text_2
-                                    , @p_msg_desc           = 'The rehire date must be greater than the termination date.'
+                                    , @p_msg_desc           = 'The rehire date must be greater than the termination date - bypassing record.'
                                     , @p_activity_status    = @v_ACTIVITY_STATUS_BAD
                                     , @p_activity_date      = @p_activity_date
                                     , @p_audit_id           = @aud_id
@@ -787,7 +789,7 @@ BEGIN
                                     , @p_pay_element_id     = @v_EMPTY_SPACE
                                     , @p_msg_p1             = @w_curr_status
                                     , @p_msg_p2             = @w_msg_text_2
-                                    , @p_msg_desc           = 'The Reactivation date must be greater than the inactivation date.'
+                                    , @p_msg_desc           = 'The Reactivation date must be greater than the inactivation date - bypassing record.'
                                     , @p_activity_status    = @v_ACTIVITY_STATUS_BAD
                                     , @p_activity_date      = @p_activity_date
                                     , @p_audit_id           = @aud_id
@@ -824,7 +826,7 @@ BEGIN
                             , @p_pay_element_id     = @v_EMPTY_SPACE
                             , @p_msg_p1             = @w_curr_status
                             , @p_msg_p2             = @v_EMPTY_SPACE
-                            , @p_msg_desc           = 'Termination - Associate is already terminated in SmartStream.'
+                            , @p_msg_desc           = 'Termination - Associate is already terminated in SmartStream - bypassing record.'
                             , @p_activity_status    = @v_ACTIVITY_STATUS_BAD
                             , @p_activity_date      = @p_activity_date
                             , @p_audit_id           = @aud_id
@@ -859,7 +861,7 @@ BEGIN
                             , @p_pay_element_id     = @v_EMPTY_SPACE
                             , @p_msg_p1             = @w_curr_status
                             , @p_msg_p2             = @v_EMPTY_SPACE
-                            , @p_msg_desc           = 'Cannot rehire an employee if the current status is not terminated.'
+                            , @p_msg_desc           = 'Cannot rehire an employee if the current status is not terminated - bypassing record.'
                             , @p_activity_status    = @v_ACTIVITY_STATUS_BAD
                             , @p_activity_date      = @p_activity_date
                             , @p_audit_id           = @aud_id
@@ -894,7 +896,7 @@ BEGIN
                             , @p_pay_element_id     = @v_EMPTY_SPACE
                             , @p_msg_p1             = @w_curr_status
                             , @p_msg_p2             = @w_msg_text_2
-                            , @p_msg_desc           = 'Cannot inactivate associate if the current status is not active.'
+                            , @p_msg_desc           = 'Cannot inactivate associate if the current status is not active - bypassing record.'
                             , @p_activity_status    = @v_ACTIVITY_STATUS_BAD
                             , @p_activity_date      = @p_activity_date
                             , @p_audit_id           = @aud_id
@@ -1320,7 +1322,7 @@ BEGIN
                                             , @p_pay_element_id     = @v_EMPTY_SPACE
                                             , @p_msg_p1             = @w_curr_status
                                             , @p_msg_p2             = @v_EMPTY_SPACE
-                                            , @p_msg_desc           = 'Cannot Reactivate an employee if the current status is not inactive.'
+                                            , @p_msg_desc           = 'Cannot Reactivate an employee if the current status is not inactive - bypassing record.'
                                             , @p_activity_status    = @v_ACTIVITY_STATUS_BAD
                                             , @p_activity_date      = @p_activity_date
                                             , @p_audit_id           = @aud_id

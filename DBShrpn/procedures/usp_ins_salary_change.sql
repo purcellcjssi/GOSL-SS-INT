@@ -46,6 +46,7 @@ GO
     2.0.00  07/20/2026  CJP                     - Phase III
                                                     1) Added columns pay_frequency_code, pay_rate_type_code, and pay_sched_code
                                                     2) Update salary setup logic to use pay frequency code
+                                                    3) Updated bad error messages to include 'bypassing record' in the description for clarity
 
 ************************************************************************************/
 
@@ -355,7 +356,7 @@ BEGIN
                             , @p_pay_element_id     = @v_EMPTY_SPACE
                             , @p_msg_p1             = @pay_rate
                             , @p_msg_p2             = @v_EMPTY_SPACE
-                            , @p_msg_desc           = 'Annual salary amount (PayRate) cannot be zero.'
+                            , @p_msg_desc           = 'Annual salary amount (PayRate) cannot be zero - bypassing record.'
                             , @p_activity_status    = @v_ACTIVITY_STATUS_BAD
                             , @p_activity_date      = @p_activity_date
                             , @p_audit_id           = @aud_id
@@ -391,7 +392,7 @@ BEGIN
                             , @p_pay_element_id     = @v_EMPTY_SPACE
                             , @p_msg_p1             = @annual_hrs_per_fte
                             , @p_msg_p2             = @v_EMPTY_SPACE
-                            , @p_msg_desc           = 'Invalid annual hours per FTE.'
+                            , @p_msg_desc           = 'Invalid annual hours per FTE - bypassing record.'
                             , @p_activity_status    = @v_ACTIVITY_STATUS_BAD
                             , @p_activity_date      = @p_activity_date
                             , @p_audit_id           = @aud_id
@@ -458,7 +459,7 @@ BEGIN
                             , @p_pay_element_id     = @v_EMPTY_SPACE
                             , @p_msg_p1             = @annual_rate
                             , @p_msg_p2             = @v_EMPTY_SPACE
-                            , @p_msg_desc           = 'Invalid annual hours per FTE.'
+                            , @p_msg_desc           = 'Invalid annual hours per FTE - bypassing record.'
                             , @p_activity_status    = @v_ACTIVITY_STATUS_BAD
                             , @p_activity_date      = @p_activity_date
                             , @p_audit_id           = @aud_id
@@ -492,7 +493,7 @@ BEGIN
                             , @p_pay_element_id     = @v_EMPTY_SPACE
                             , @p_msg_p1             = @v_EMPTY_SPACE
                             , @p_msg_p2             = @v_EMPTY_SPACE
-                            , @p_msg_desc           = 'Invalid Effective Date'
+                            , @p_msg_desc           = 'Invalid Effective Date - bypassing record.'
                             , @p_activity_status    = @v_ACTIVITY_STATUS_BAD
                             , @p_activity_date      = @p_activity_date
                             , @p_audit_id           = @aud_id
@@ -561,7 +562,7 @@ BEGIN
                             , @p_pay_element_id     = @v_EMPTY_SPACE
                             , @p_msg_p1             = @v_EMPTY_SPACE
                             , @p_msg_p2             = @v_EMPTY_SPACE
-                            , @p_msg_desc           = 'Employee does not exist'
+                            , @p_msg_desc           = 'Employee does not exist - bypassing record.'
                             , @p_activity_status    = @v_ACTIVITY_STATUS_BAD
                             , @p_activity_date      = @p_activity_date
                             , @p_audit_id           = @aud_id
@@ -636,7 +637,7 @@ BEGIN
                             , @p_pay_element_id     = @v_EMPTY_SPACE
                             , @p_msg_p1             = @w_msg_text_2
                             , @p_msg_p2             = @v_EMPTY_SPACE
-                            , @p_msg_desc           = 'New effective date must be greater than or equal to current employee assignment effective date.'
+                            , @p_msg_desc           = 'New effective date must be greater than or equal to current employee assignment effective date - bypassing record.'
                             , @p_activity_status    = @v_ACTIVITY_STATUS_BAD
                             , @p_activity_date      = @p_activity_date
                             , @p_audit_id           = @aud_id

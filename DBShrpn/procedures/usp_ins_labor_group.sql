@@ -51,6 +51,8 @@ GO
                                                         - Changed where clause to use current emp_ployment effective date instead of new effective date
                                                     2) Added SmartStream audit table inserts for labor group change
             06/10/2026                              3) Added procedure usp_upd_emp_employment call to update SmartStream Employee Employment table
+    2.0.00  09/14/2026  CJP                     - Phase III
+                                                    1) Updated bad error messages to include 'bypassing record' in the description for clarity
 
 ************************************************************************************/
 
@@ -290,7 +292,7 @@ BEGIN
                             , @p_pay_element_id     = @v_EMPTY_SPACE
                             , @p_msg_p1             = @v_EMPTY_SPACE
                             , @p_msg_p2             = @v_EMPTY_SPACE
-                            , @p_msg_desc           = 'Invalid Effective Date'
+                            , @p_msg_desc           = 'Invalid Effective Date - bypassing record.'
                             , @p_activity_status    = @v_ACTIVITY_STATUS_BAD
                             , @p_activity_date      = @p_activity_date
                             , @p_audit_id           = @aud_id
@@ -343,7 +345,7 @@ BEGIN
                             , @p_pay_element_id     = @v_EMPTY_SPACE
                             , @p_msg_p1             = @v_EMPTY_SPACE
                             , @p_msg_p2             = @v_EMPTY_SPACE
-                            , @p_msg_desc           = 'Employee does not exist'
+                            , @p_msg_desc           = 'Employee does not exist  - bypassing record.'
                             , @p_activity_status    = @v_ACTIVITY_STATUS_BAD
                             , @p_activity_date      = @p_activity_date
                             , @p_audit_id           = @aud_id
@@ -456,7 +458,7 @@ BEGIN
                             , @p_pay_element_id     = @v_EMPTY_SPACE
                             , @p_msg_p1             = @labor_grp_code
                             , @p_msg_p2             = @v_EMPTY_SPACE
-                            , @p_msg_desc           = 'Invalid labor group code.'
+                            , @p_msg_desc           = 'Invalid labor group code - bypassing record.'
                             , @p_activity_status    = @v_ACTIVITY_STATUS_BAD
                             , @p_activity_date      = @p_activity_date
                             , @p_audit_id           = @aud_id
@@ -495,7 +497,7 @@ BEGIN
                             , @p_pay_element_id     = @v_EMPTY_SPACE
                             , @p_msg_p1             = @w_msg_text_2
                             , @p_msg_p2             = @v_EMPTY_SPACE
-                            , @p_msg_desc           = 'New effective date must be greater or equal to current employee employment effective date.'
+                            , @p_msg_desc           = 'New effective date must be greater or equal to current employee employment effective date - bypassing record.'
                             , @p_activity_status    = @v_ACTIVITY_STATUS_BAD
                             , @p_activity_date      = @p_activity_date
                             , @p_audit_id           = @aud_id

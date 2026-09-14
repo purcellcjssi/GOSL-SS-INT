@@ -47,6 +47,8 @@ GO
             06/18/2026  CJP                         2) Fixed emp_assignment update to use valid variables in where clause
                                                     3) Added logic if pay group id is invalid, default to '99999'
                                                     4) Added logic to update tax ceiling amount to DBShrpn..employee.user_monetary_amt_1
+    2.0.00  09/14/2026  CJP                     - Phase III
+                                                    1) Updated bad error messages to include 'bypassing record' in the description for clarity
 
 ************************************************************************************/
 
@@ -381,7 +383,7 @@ BEGIN
                             , @p_pay_element_id     = @v_EMPTY_SPACE
                             , @p_msg_p1             = @v_EMPTY_SPACE
                             , @p_msg_p2             = @v_EMPTY_SPACE
-                            , @p_msg_desc           = 'Invalid Effective Date'
+                            , @p_msg_desc           = 'Invalid Effective Date - bypassing record.'
                             , @p_activity_status    = @v_ACTIVITY_STATUS_BAD
                             , @p_activity_date      = @p_activity_date
                             , @p_audit_id           = @aud_id
@@ -470,7 +472,7 @@ BEGIN
                         , @p_pay_element_id     = @v_EMPTY_SPACE
                         , @p_msg_p1             = @v_EMPTY_SPACE
                         , @p_msg_p2             = @v_EMPTY_SPACE
-                        , @p_msg_desc           = 'Invalid employee id.'
+                        , @p_msg_desc           = 'Invalid employee id - bypassing record.'
                         , @p_activity_status    = @v_ACTIVITY_STATUS_BAD
                         , @p_activity_date      = @p_activity_date
                         , @p_audit_id           = @aud_id
@@ -517,7 +519,7 @@ BEGIN
                         , @p_pay_element_id     = @v_EMPTY_SPACE
                         , @p_msg_p1             = @v_EMPTY_SPACE
                         , @p_msg_p2             = @v_EMPTY_SPACE
-                        , @p_msg_desc           = 'Associate is currently terminated and has rehire record in current extract - bypassing transfer.'
+                        , @p_msg_desc           = 'Associate is currently terminated and has rehire record in current extract - bypassing record.'
                         , @p_activity_status    = @v_ACTIVITY_STATUS_BAD
                         , @p_activity_date      = @p_activity_date
                         , @p_audit_id           = @aud_id
@@ -562,7 +564,7 @@ BEGIN
                             , @p_pay_element_id     = @v_EMPTY_SPACE
                             , @p_msg_p1             = @w_msg_text_2
                             , @p_msg_p2             = @v_EMPTY_SPACE
-                            , @p_msg_desc           = 'The new effective date for employee must be greater than the current employee employment effective date.'
+                            , @p_msg_desc           = 'The new effective date for employee must be greater than the current employee employment effective date - bypassing record.'
                             , @p_activity_status    = @v_ACTIVITY_STATUS_BAD
                             , @p_activity_date      = @p_activity_date
                             , @p_audit_id           = @aud_id
@@ -604,7 +606,7 @@ BEGIN
                             , @p_pay_element_id     = @v_EMPTY_SPACE
                             , @p_msg_p1             = @v_EMPTY_SPACE
                             , @p_msg_p2             = @v_EMPTY_SPACE
-                            , @p_msg_desc           = 'Existing payments have not been updated into the accumulator for this employee.'
+                            , @p_msg_desc           = 'Existing payments have not been updated into the accumulator for this employee - bypassing record.'
                             , @p_activity_status    = @v_ACTIVITY_STATUS_BAD
                             , @p_activity_date      = @p_activity_date
                             , @p_audit_id           = @aud_id
@@ -645,7 +647,7 @@ BEGIN
                                 , @p_pay_element_id     = @v_EMPTY_SPACE
                                 , @p_msg_p1             = @empl_id
                                 , @p_msg_p2             = @v_EMPTY_SPACE
-                                , @p_msg_desc           = 'Employer does not exist - bypassing record'
+                                , @p_msg_desc           = 'Employer does not exist - bypassing record.'
                                 , @p_activity_status    = @v_ACTIVITY_STATUS_BAD
                                 , @p_activity_date      = @p_activity_date
                                 , @p_audit_id           = @aud_id
@@ -679,7 +681,7 @@ BEGIN
                             , @p_pay_element_id     = @v_EMPTY_SPACE
                             , @p_msg_p1             = @empl_id
                             , @p_msg_p2             = @cur_empl_id
-                            , @p_msg_desc           = 'Cannot transfer an employee to the same employer.'
+                            , @p_msg_desc           = 'Cannot transfer an employee to the same employer - bypassing record.'
                             , @p_activity_status    = @v_ACTIVITY_STATUS_BAD
                             , @p_activity_date      = @p_activity_date
                             , @p_audit_id           = @aud_id
@@ -715,7 +717,7 @@ BEGIN
                     FROM DBSCOMMON.dbo.message_master t
                     WHERE (t.msg_id = @msg_id)
 
-                    SET @w_msg_text = 'New employer, ' + @empl_id + ', does not have an associated tax entity. Employee cannot be transferred.'
+                    SET @w_msg_text = 'New employer, ' + @empl_id + ', does not have an associated tax entity. Employee cannot be transferred - bypassing record.'
 
                     -- Historical Message for reporting purpose
                     EXEC DBShrpn.dbo.usp_ins_ghr_historical_message
@@ -762,7 +764,7 @@ BEGIN
                                     , @p_pay_element_id     = @v_EMPTY_SPACE
                                     , @p_msg_p1             = @cur_emp_status_code
                                     , @p_msg_p2             = @v_EMPTY_SPACE
-                                    , @p_msg_desc           = 'Terminated employee cannot be transferred.'
+                                    , @p_msg_desc           = 'Terminated employee cannot be transferred - bypassing record.'
                                     , @p_activity_status    = @v_ACTIVITY_STATUS_BAD
                                     , @p_activity_date      = @p_activity_date
                                     , @p_audit_id           = @aud_id
@@ -782,7 +784,7 @@ BEGIN
                                     , @p_pay_element_id     = @v_EMPTY_SPACE
                                     , @p_msg_p1             = @cur_emp_status_code
                                     , @p_msg_p2             = @v_EMPTY_SPACE
-                                    , @p_msg_desc           = 'Terminated employee contains a rehire change event in current extract - bypassing transfer.'
+                                    , @p_msg_desc           = 'Terminated employee contains a rehire change event in current extract - bypassing record.'
                                     , @p_activity_status    = @v_ACTIVITY_STATUS_BAD
                                     , @p_activity_date      = @p_activity_date
                                     , @p_audit_id           = @aud_id
@@ -866,7 +868,7 @@ BEGIN
                             , @p_pay_element_id     = @v_EMPTY_SPACE
                             , @p_msg_p1             = @labor_grp_code
                             , @p_msg_p2             = @v_EMPTY_SPACE
-                            , @p_msg_desc           = 'Invalid labor group code - bypassing transfer.'
+                            , @p_msg_desc           = 'Invalid labor group code - bypassing record.'
                             , @p_activity_status    = @v_ACTIVITY_STATUS_BAD
                             , @p_activity_date      = @p_activity_date
                             , @p_audit_id           = @aud_id

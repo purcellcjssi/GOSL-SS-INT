@@ -45,9 +45,10 @@ GO
                                                     1) Updated employer id validation to skip record if invalid
                                                         - default setting handled in usp_sel_employee_events
             06/18/2026  CJP                         3) Added logic if pay group id is invalid, default to '99999'
-      07/20/2026  CJP                     - Phase III
+    2.0.00  07/20/2026  CJP                     - Phase III
                                                     1) Added columns pay_frequency_code, pay_rate_type_code, and pay_sched_code
                                                     2) Update salary setup logic to use pay frequency code
+            09/14/2026  CJP                         3) Updated bad error messages to include 'bypassing record' in the description for clarity
 
 ************************************************************************************/
 
@@ -425,7 +426,7 @@ BEGIN
                             , @p_pay_element_id     = @v_EMPTY_SPACE
                             , @p_msg_p1             = @v_EMPTY_SPACE
                             , @p_msg_p2             = @v_EMPTY_SPACE
-                            , @p_msg_desc           = 'Employee id already exists'
+                            , @p_msg_desc           = 'Employee id already exists - bypassing record.'
                             , @p_activity_status    = @v_ACTIVITY_STATUS_BAD
                             , @p_activity_date      = @p_activity_date
                             , @p_audit_id           = @aud_id
@@ -701,7 +702,7 @@ BEGIN
                             , @p_pay_element_id     = @v_EMPTY_SPACE
                             , @p_msg_p1             = @pay_rate
                             , @p_msg_p2             = @v_EMPTY_SPACE
-                            , @p_msg_desc           = 'Annual salary amount (PayRate) cannot be zero.'
+                            , @p_msg_desc           = 'Annual salary amount (PayRate) cannot be zero - bypassing record.'
                             , @p_activity_status    = @v_ACTIVITY_STATUS_BAD
                             , @p_activity_date      = @p_activity_date
                             , @p_audit_id           = @aud_id
@@ -738,7 +739,7 @@ BEGIN
                             , @p_pay_element_id     = @v_EMPTY_SPACE
                             , @p_msg_p1             = @annual_hrs_per_fte
                             , @p_msg_p2             = @v_EMPTY_SPACE
-                            , @p_msg_desc           = 'Invalid annual hours per FTE.'
+                            , @p_msg_desc           = 'Invalid annual hours per FTE - bypassing record.'
                             , @p_activity_status    = @v_ACTIVITY_STATUS_BAD
                             , @p_activity_date      = @p_activity_date
                             , @p_audit_id           = @aud_id
@@ -804,7 +805,7 @@ BEGIN
                             , @p_pay_element_id     = @v_EMPTY_SPACE
                             , @p_msg_p1             = @annual_rate
                             , @p_msg_p2             = @v_EMPTY_SPACE
-                            , @p_msg_desc           = 'Invalid annual hours per FTE.'
+                            , @p_msg_desc           = 'Invalid annual hours per FTE - bypassing record.'
                             , @p_activity_status    = @v_ACTIVITY_STATUS_BAD
                             , @p_activity_date      = @p_activity_date
                             , @p_audit_id           = @aud_id
@@ -838,7 +839,7 @@ BEGIN
                             , @p_pay_element_id     = @v_EMPTY_SPACE
                             , @p_msg_p1             = @emp_calculation
                             , @p_msg_p2             = ''
-                            , @p_msg_desc           = 'Invalid Effective Date'
+                            , @p_msg_desc           = 'Invalid Effective Date - bypassing record.'
                             , @p_activity_status    = @v_ACTIVITY_STATUS_BAD
                             , @p_activity_date      = @p_activity_date
                             , @p_audit_id           = @aud_id
@@ -870,9 +871,9 @@ BEGIN
                             , @p_emp_id             = @emp_id
                             , @p_eff_date           = @eff_date
                             , @p_pay_element_id     = @v_EMPTY_SPACE
-                            , @p_msg_p1             = 'Birth date value was able to be converted to a valid date.'
+                            , @p_msg_p1             = 'Birth date value was not able to be converted to a valid date.'
                             , @p_msg_p2             = ''
-                            , @p_msg_desc           = 'Invalid Birth Date'
+                            , @p_msg_desc           = 'Invalid Birth Date - bypassing record.'
                             , @p_activity_status    = @v_ACTIVITY_STATUS_BAD
                             , @p_activity_date      = @p_activity_date
                             , @p_audit_id           = @aud_id
@@ -1146,7 +1147,7 @@ BEGIN
                         , @p_pay_element_id     = @v_EMPTY_SPACE
                         , @p_msg_p1             = @emp_calculation
                         , @p_msg_p2             = ''
-                        , @p_msg_desc           = 'New hire update failed.'
+                        , @p_msg_desc           = 'New hire update failed - bypassing record.'
                         , @p_activity_status    = @v_ACTIVITY_STATUS_BAD
                         , @p_activity_date      = @p_activity_date
                         , @p_audit_id           = @aud_id
