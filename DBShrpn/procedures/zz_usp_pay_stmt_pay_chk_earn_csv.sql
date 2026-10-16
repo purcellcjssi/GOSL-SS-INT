@@ -56,33 +56,29 @@ BEGIN
     ---------------------------------------------------------------------------
     -- Export Earnings Records
     ---------------------------------------------------------------------------
-    SELECT 'EffectiveDate'              AS 'EffectiveDate'
-         , 'HROrganization'             AS 'HROrganization'
+    SELECT 'HROrganization'             AS 'HROrganization'
          , 'Employee'                   AS 'Employee'
+         , 'EffectiveDate'              AS 'EffectiveDate'
          , 'CheckDate'                  AS 'CheckDate'
          , 'CheckID'                    AS 'CheckID'
          , 'CheckEarningCounter'        AS 'CheckEarningCounter'
          , 'EarningsDescription'        AS 'EarningsDescription'
-         , 'EarningsHours'              AS 'EarningsHours'
          , 'EarningsAmount'             AS 'EarningsAmount'
          , 'BeginDate'                  AS 'BeginDate'
          , 'EndDate'                    AS 'EndDate'
          , 'YearToDateEarningsAmount'   AS 'YearToDateEarningsAmount'
-         , 'YearToDateHours'            AS 'YearToDateHours'
     UNION ALL
-    SELECT CONVERT(varchar(10), EffectiveDate, 112)
-         , HROrganization
+    SELECT HROrganization
          , Employee
+         , CONVERT(varchar(10), EffectiveDate, 112)
          , CONVERT(varchar(10), CheckDate, 112)
          , CheckID
          , CONVERT(varchar(10), CheckEarningCounter)
          , RTRIM(EarningsDescription)
-         , CONVERT(varchar(18), EarningsHours, 0)
          , CONVERT(varchar(18), EarningsAmount, 0)
          , CONVERT(varchar(10), BeginDate, 112)
          , CONVERT(varchar(10), EndDate, 112)
          , CONVERT(varchar(18), YearToDateEarningsAmount, 0)
-         , CONVERT(varchar(18), YearToDateHours, 0)
     FROM dbo.ghr_pay_check_earning
 
 

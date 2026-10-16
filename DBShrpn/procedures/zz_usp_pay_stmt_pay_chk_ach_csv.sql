@@ -56,11 +56,15 @@ BEGIN
     ---------------------------------------------------------------------------
     -- Export ACH Records
     ---------------------------------------------------------------------------
-    SELECT 'EffectiveDate'      AS 'EffectiveDate'
-         , 'HROrganization'     AS 'HROrganization'
+    SELECT
+           'HROrganization'     AS 'HROrganization'
          , 'Employee'           AS 'Employee'
-         , 'CheckDate'          AS 'CheckDate'
+         , 'EffectiveDate'      AS 'EffectiveDate'
          , 'CheckID'            AS 'CheckID'
+         , 'CheckNumber'            AS 'CheckNumber'
+         , 'NetPayAmount'            AS 'NetPayAmount'
+         , 'YearToDateNetPay'            AS 'YearToDateNetPay'
+         , 'CheckDate'          AS 'CheckDate'
          , 'CheckACHCounter'    AS 'CheckACHCounter'
          , 'ACHDescription'     AS 'ACHDescription'
          , 'DistributionAmount' AS 'DistributionAmount'

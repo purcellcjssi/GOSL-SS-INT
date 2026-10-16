@@ -33,7 +33,7 @@ GO
         DBShrpn.dbo.ghr_pay_check
 
     Example:
-         DBShrpn.dbo.usp_pay_stmt_pay_chk_csv
+         EXEC DBShrpn.dbo.usp_pay_stmt_pay_chk_csv
 
 
 
@@ -54,53 +54,37 @@ BEGIN
     ---------------------------------------------------------------------------
     -- Export Header Record
     ---------------------------------------------------------------------------
-    SELECT 'EffectiveDate'                  AS 'EffectiveDate'
-         , 'HROrganization'                 AS 'HROrganization'
+    SELECT 'HROrganization'                 AS 'HROrganization'
          , 'Employee'                       AS 'Employee'
-         , 'CheckDate'                      AS 'CheckDate'
+         , 'EffectiveDate'                  AS 'EffectiveDate'
+         , 'CheckID'                        AS 'CheckID'
          , 'CheckNumber'                    AS 'CheckNumber'
-         , 'PayPeriodID'                    AS 'PayPeriodID'
-         , 'PayPeriodBeginDate'             AS 'PayPeriodBeginDate'
-         , 'PayPeriodEndDate'               AS 'PayPeriodEndDate'
          , 'NetPayAmount'                   AS 'NetPayAmount'
          , 'YearToDateNetPay'               AS 'YearToDateNetPay'
+         , 'CheckDate'                      AS 'CheckDate'
+         , 'PayPeriodBeginDate'             AS 'PayPeriodBeginDate'
+         , 'PayPeriodEndDate'               AS 'PayPeriodEndDate'
          , 'CheckNetAmount'                 AS 'CheckNetAmount'
-         , 'YearToDateCheckNet'             AS 'YearToDateCheckNet'
          , 'GrossPayAmount'                 AS 'GrossPayAmount'
          , 'YearToDateGrossPay'             AS 'YearToDateGrossPay'
-         , 'Taxable'                        AS 'Taxable'
-         , 'YearToDateTaxable'              AS 'YearToDateTaxable'
-         , 'TotalACH'                       AS 'TotalACH'
-         , 'TotalOtherDeductions'           AS 'TotalOtherDeductions'
          , 'TotalCheckDeductions'           AS 'TotalCheckDeductions'
-         , 'TotalTaxDeductions'             AS 'TotalTaxDeductions'
          , 'TotalYearToDateDeductions'      AS 'TotalYearToDateDeductions'
-         , 'CheckID'                        AS 'CheckID'
-         , 'CheckType'                      AS 'CheckType'
     UNION ALL
-    SELECT CONVERT(varchar(10), EffectiveDate, 112)
-         , HROrganization
+    SELECT HROrganization
          , Employee
-         , CONVERT(varchar(10), CheckDate, 112)
+         , CONVERT(varchar(10), EffectiveDate, 112)
+         , CheckID
          , CheckNumber
-         , RTRIM(PayPeriodID)
-         , CONVERT(varchar(10), PayPeriodBeginDate, 112)
-         , CONVERT(varchar(10), PayPeriodEndDate, 112)
          , CONVERT(varchar(10), NetPayAmount, 0)
          , CONVERT(varchar(10), YearToDateNetPay, 0)
+         , CONVERT(varchar(10), CheckDate, 112)
+         , CONVERT(varchar(10), PayPeriodBeginDate, 112)
+         , CONVERT(varchar(10), PayPeriodEndDate, 112)
          , CONVERT(varchar(10), CheckNetAmount, 0)
-         , CONVERT(varchar(10), YearToDateCheckNet, 0)
          , CONVERT(varchar(10), GrossPayAmount, 0)
          , CONVERT(varchar(10), YearToDateGrossPay, 0)
-         , CONVERT(varchar(10), Taxable, 0)
-         , CONVERT(varchar(10), YearToDateTaxable, 0)
-         , CONVERT(varchar(10), TotalACH, 0)
-         , CONVERT(varchar(10), TotalOtherDeductions, 0)
          , CONVERT(varchar(10), TotalCheckDeductions, 0)
-         , CONVERT(varchar(10), TotalTaxDeductions, 0)
          , CONVERT(varchar(10), TotalYearToDateDeductions, 0)
-         , CheckID
-         , CheckType
     FROM dbo.ghr_pay_check
 
 END  -- End of SP

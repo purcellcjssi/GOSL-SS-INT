@@ -55,9 +55,9 @@ BEGIN
     ---------------------------------------------------------------------------
     -- Export Deductions Records
     ---------------------------------------------------------------------------
-    SELECT 'EffectiveDate'              AS 'EffectiveDate'
-         , 'HROrganization'             AS 'HROrganization'
+    SELECT 'HROrganization'             AS 'HROrganization'
          , 'Employee'                   AS 'Employee'
+         , 'EffectiveDate'              AS 'EffectiveDate'
          , 'CheckDate'                  AS 'CheckDate'
          , 'CheckID'                    AS 'CheckID'
          , 'CheckDeductionCounter'       AS 'CheckDeductionCounter'
@@ -66,9 +66,9 @@ BEGIN
          , 'DeductionAmount'             AS 'DeductionAmount'
          , 'TotalYearToDateDeductionAmount' AS 'TotalYearToDateDeductionAmount'
     UNION ALL
-    SELECT CONVERT(varchar(10), EffectiveDate, 112)
-         , HROrganization
+    SELECT HROrganization
          , Employee
+         , CONVERT(varchar(10), EffectiveDate, 112)
          , CONVERT(varchar(10), CheckDate, 112)
          , CheckID
          , CONVERT(varchar(10), CheckDeductionCounter)
