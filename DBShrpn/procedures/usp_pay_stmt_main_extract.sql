@@ -27,10 +27,9 @@ GO
 
 
     Parameters:
-        @v_cal_yr               = Calendar Year
-		@v_payroll_run_type_id	= Payroll Run Type ID
-		@p_pay_pd_id			= Payroll Period ID
-		@p_emp_id				= Employee ID - For debugging purposes only, will typically be null to pull all employees
+		@p_payroll_run_ctrl_id	= Payroll Run Control ID
+		@p_pmt_meth_id			= Payment Method ID
+		@p_emp_id				= Employee ID - Tilde (~) delimited string -r debugging purposes only, will typically be null to pull all employees
 
     Tables:
         DBShrpy.dbo.emp_pmt
@@ -42,15 +41,13 @@ GO
         DBShrpn.dbo.ghr_pay_check
         DBShrpn.dbo.ghr_pay_check_earning
         DBShrpn.dbo.ghr_pay_check_deduction
-        DBShrpn.dbo.ghr_pay_check_ach
 
 
     Example:
          EXEC DBShrpn.dbo.usp_pay_stmt_main_extract
-              @v_cal_yr                 = 2025
-            , @v_payroll_run_type_id    = 'MONTHLY'
-            , @p_pay_pd_id              = '1 2020'
-            , @p_emp_id                 = '10236'
+            , @p_payroll_run_ctrl_id = 'M6Y2026T2'
+            , @p_pmt_meth_id         = 'DDPST'
+            , @p_emp_id              = '17201~17202~17203'
 
 
    Revision history:
@@ -60,7 +57,11 @@ GO
 
 ************************************************************************************/
 CREATE procedure dbo.usp_pay_stmt_main_extract
-
+    (
+        @p_payroll_run_ctrl_id   char(10)    = NULL
+    ,   @p_pmt_meth_id           char(05)    = NULL
+    ,   @p_emp_id                varchar(8000)    = NULL
+    )
 AS
 
 BEGIN
@@ -71,24 +72,35 @@ BEGIN
     DECLARE @v_END_OF_TIME_DATE         datetime            = '29991231'
     DECLARE @V_ENGLISH_LANG_CODE        char(5)             = 'EN' -- English
 
-    DECLARE @v_cal_yr                   int         = 2026
-    DECLARE @v_payroll_run_type_id      char(10)    = 'MONTHLY'
-    DECLARE @v_pay_pd_id                char(10)    = '5 2026'
-    DECLARE @v_emp_id                   char(15)    = NULL
+
+    ---------------------------------------------------------------------------
+    -- Lookup Run Control/Payment Mehod
+    ---------------------------------------------------------------------------
+    IF (@p_payroll_run_ctrl_id IS NULL)
+    BEGIN
+        SELECT @p_payroll_run_ctrl_id = REVERSE(PARSENAME(REPLACE(REVERSE(psc_pgm_parms), ' ', '.'), 1))
+             , @p_pmt_meth_id         = REVERSE(PARSENAME(REPLACE(REVERSE(psc_pgm_parms), ' ', '.'), 2))
+        FROM DBSpscb.dbo.psc_log pl1
+        WHERE (psc_batchname = 'BATDISB')
+          AND (psc_unique_id = (
+                                SELECT MAX(pl2.psc_unique_id)
+                                FROM DBSpscb.dbo.psc_log pl2
+                                WHERE (pl2.psc_batchname = pl1.psc_batchname)
+                                    AND (pl2.psc_curtime = (
+                                                            SELECT MAX(pl3.psc_curtime)
+                                                            FROM DBSpscb.dbo.psc_log pl3
+                                                            WHERE (pl3.psc_batchname = pl1.psc_batchname)
+                                                            ))
+                                ))
+    END
+
+
+
 
     ---------------------------------------------------------------------------
     -- Delete previous generated records
     ---------------------------------------------------------------------------
     DELETE FROM dbo.ghr_pay_check
-
-
-    ---------------------------------------------------------------------------
-    -- Lookup Disbursal parameters
-    ---------------------------------------------------------------------------
-    -- First get job schedulers BATDISB end date
-
-    
-
 
 
     ---------------------------------------------------------------------------
@@ -100,6 +112,7 @@ BEGIN
          , pmt.pay_pd_id
          , pmt.pmt_seq_nbr
          , pmt.seq_ctrl_yr
+         , pmt.procsd_by_payroll_run_ctrl_id
 
          , 'GOSL' AS hr_org                         -- HROrganization
          , pmt.emp_id                               -- Employee
@@ -135,36 +148,28 @@ BEGIN
 	  AND (pmt.emp_pmt_status_code        = '05')       -- Completely disbursed
       AND (pmt.pmt_type_code             <> '04')       -- Exclude reversals
       AND (dsb.doc_disbursal_status_code <> '06')       -- Exclude voids due to overflows on earnings statement
-      --AND (dsb.pmt_meth_id = 'DDPST')
 
 	  AND (
-			(@v_cal_yr IS NULL) OR
+			(@p_payroll_run_ctrl_id IS NULL) OR
 			(
-			 (@v_cal_yr IS NOT NULL) AND
-			 (pmt.seq_ctrl_yr = @v_cal_yr)
+			 (@p_payroll_run_ctrl_id IS NOT NULL) AND
+			 (pmt.procsd_by_payroll_run_ctrl_id = @p_payroll_run_ctrl_id)
 			)
 		  )
 
+	  AND (
+			(@p_pmt_meth_id IS NULL) OR
+			(
+			 (@p_pmt_meth_id IS NOT NULL) AND
+			 (dsb.pmt_meth_id = @p_pmt_meth_id)
+			)
+		  )
 
-	  AND (
-			(@v_payroll_run_type_id IS NULL) OR
-			(
-			 (@v_payroll_run_type_id IS NOT NULL) AND
-			 (pmt.payroll_run_type_id = @v_payroll_run_type_id)
-			)
-		  )
-	  AND (
-			(@v_pay_pd_id IS NULL) OR
-			(
-			 (@v_pay_pd_id IS NOT NULL) AND
-			 (pmt.pay_pd_id = @v_pay_pd_id)
-			)
-		  )
       AND (  -- associate id
-           (@v_emp_id IS NULL) OR
+           (@p_emp_id IS NULL) OR
            (
-            (@v_emp_id IS NOT NULL) AND
-            (pmt.emp_id = @v_emp_id)
+            (@p_emp_id IS NOT NULL) AND
+            (pmt.emp_id IN (SELECT val FROM dbo.ufn_text_splitter(@p_emp_id, '~')))
            )
           )
 
@@ -173,7 +178,7 @@ BEGIN
            , pmt.pay_pd_id
            , pmt.pmt_seq_nbr
            , pmt.seq_ctrl_yr
-           , pmt.check_date
+           , pmt.procsd_by_payroll_run_ctrl_id
            , pmt.check_date                           -- CheckDate
            , pmt.pay_pd_begin_date                    -- PayPeriodDateRange.BeginDate
            , pmt.pay_pd_end_date                      -- PayPeriodDateRange.EndDate
