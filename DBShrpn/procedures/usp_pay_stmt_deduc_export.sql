@@ -55,6 +55,7 @@ BEGIN
     ---------------------------------------------------------------------------
     -- Export Deductions Records
     ---------------------------------------------------------------------------
+    /*
     SELECT 'HROrganization'
          +  '^Employee'
          +  '^EffectiveDate'
@@ -66,6 +67,7 @@ BEGIN
          +  '^DeductionAmount'
          +  '^TotalYearToDateDeductionAmount' AS 'line_output'
     UNION ALL
+    */
     SELECT RTRIM(HROrganization)
          + '^' + RTRIM(Employee)
          + '^' + CONVERT(varchar(10), EffectiveDate, 112)

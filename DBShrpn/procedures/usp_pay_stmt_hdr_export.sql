@@ -54,6 +54,7 @@ BEGIN
     ---------------------------------------------------------------------------
     -- Export Header Record
     ---------------------------------------------------------------------------
+    /*
     SELECT 'HROrganization'
          + '^Employee'
          + '^EffectiveDate'
@@ -70,6 +71,7 @@ BEGIN
          + '^TotalCheckDeductions'
          + '^TotalYearToDateDeductions'
     UNION ALL
+    */
     SELECT HROrganization
          + '^' + RTRIM(Employee)
          + '^' + CONVERT(varchar(10), EffectiveDate, 112)

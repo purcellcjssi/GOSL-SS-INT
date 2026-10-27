@@ -56,7 +56,7 @@ BEGIN
     ---------------------------------------------------------------------------
     -- Export Earnings Records
     ---------------------------------------------------------------------------
-    SELECT 'HROrganization'
+    /*SELECT 'HROrganization'
          + '^Employee'
          + '^EffectiveDate'
          + '^CheckDate'
@@ -68,6 +68,7 @@ BEGIN
          + '^EndDate'
          + '^YearToDateEarningsAmount'
     UNION ALL
+    */
     SELECT HROrganization
          + '^' + RTRIM(Employee)
          + '^' + CONVERT(varchar(10), EffectiveDate, 112)
