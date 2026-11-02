@@ -99,8 +99,8 @@ BEGIN
     DECLARE @v_event_id                             char(2)             = '00'
 
     DECLARE @v_PSC_BATCHNAME                        char(08)            = 'GHR'
-    DECLARE @w_PSC_QUALIFIER                        char(30)            = 'INTERFACES'
-    DECLARE @w_PSC_PSC_PGM_PARMS                    varchar(255)        = 'GHR_EMPLOYEE_EVENTS'
+    DECLARE @v_PSC_QUALIFIER                        char(30)            = 'INTERFACES'
+    DECLARE @v_PSC_PSC_PGM_PARMS                    varchar(255)        = 'GHR_EMPLOYEE_EVENTS'
 
     DECLARE @v_EVENT_ID_NEW_HIRE                    char(2)             = '01'
     DECLARE @v_EVENT_ID_SALARY_CHANGE               char(2)             = '02'

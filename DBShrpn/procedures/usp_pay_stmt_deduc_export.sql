@@ -63,9 +63,10 @@ BEGIN
          +  '^CheckID'
          +  '^CheckDeductionCounter'
          +  '^DeductionType'
-         +  '^DeductionDescription'
+         +  '^DeductionCodDescription'
          +  '^DeductionAmount'
-         +  '^TotalYearToDateDeductionAmount' AS 'line_output'
+         +  '^TotalYearToDateDeductionAmount'
+         +  '^DeductionCodDescription' AS 'line_output'
     UNION ALL
     */
     SELECT RTRIM(HROrganization)
@@ -75,9 +76,10 @@ BEGIN
          + '^' + RTRIM(CheckID)
          + '^' + CONVERT(varchar(10), CheckDeductionCounter)
          + '^' + DeductionType
-         + '^' + RTRIM(DeductionDescription)
+         + '^' + RTRIM(DeductionCodeDescription)
          + '^' + CONVERT(varchar(18),DeductionAmount,0)
-         + '^' + CONVERT(varchar(18),YearToDateDeductionAmount,0) AS line_output
+         + '^' + CONVERT(varchar(18),YearToDateDeductionAmount,0)
+         + '^' + RTRIM(DeductionCodeDesc2) AS line_output
     FROM dbo.ghr_pay_check_deduction
 
 

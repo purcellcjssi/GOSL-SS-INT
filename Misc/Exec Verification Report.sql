@@ -1,5 +1,7 @@
+/*
 SELECT @@SERVERNAME as servername
 GO
+*/
 
 /*
 SELECT DISTINCT activity_date
