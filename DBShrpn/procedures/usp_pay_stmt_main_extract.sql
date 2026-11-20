@@ -102,20 +102,34 @@ BEGIN
 
         IF (@p_payroll_run_ctrl_id IS NULL)
             BEGIN
-                SELECT @p_payroll_run_ctrl_id = REVERSE(PARSENAME(REPLACE(REVERSE(psc_pgm_parms), ' ', '.'), 1))
-                    , @p_pmt_meth_id         = REVERSE(PARSENAME(REPLACE(REVERSE(psc_pgm_parms), ' ', '.'), 2))
+                SELECT @p_payroll_run_ctrl_id = REVERSE(PARSENAME(REPLACE(REVERSE(pl1.psc_pgm_parms), ' ', '.'), 1))
+                    , @p_pmt_meth_id         = REVERSE(PARSENAME(REPLACE(REVERSE(pl1.psc_pgm_parms), ' ', '.'), 2))
                 FROM DBSpscb.dbo.psc_log pl1
-                WHERE (psc_batchname = 'BATDISB')
-                AND (psc_unique_id = (
+                WHERE (pl1.psc_batchname = 'BATDISB')
+				  AND (pl1.psc_pgm_name  = 'hpycdisb')
+                  AND (psc_unique_id = (
                                         SELECT MAX(pl2.psc_unique_id)
                                         FROM DBSpscb.dbo.psc_log pl2
                                         WHERE (pl2.psc_batchname = pl1.psc_batchname)
+										  AND (pl2.psc_pgm_name = pl1.psc_pgm_name)
                                             AND (pl2.psc_curtime = (
                                                                     SELECT MAX(pl3.psc_curtime)
                                                                     FROM DBSpscb.dbo.psc_log pl3
                                                                     WHERE (pl3.psc_batchname = pl1.psc_batchname)
+																	  AND (pl3.psc_pgm_name = pl1.psc_pgm_name)
                                                                     ))
                                         ))
+
+                -- Validate lookup of run control parameter
+
+
+                IF (@p_payroll_run_ctrl_id IS NULL)
+                    BEGIN
+                        SET @v_msg = 'Invalid payroll run control id (' + @p_payroll_run_ctrl_id + '). Was not able to determine the most recent disbursed run control in table DBSpscb.dbo.psc_log.'
+                        RAISERROR(@v_msg, 16, 1)
+                    END
+
+
             END
         ELSE
             BEGIN
