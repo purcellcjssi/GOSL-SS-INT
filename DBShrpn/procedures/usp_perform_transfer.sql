@@ -27,6 +27,7 @@ GO
         @p_batchname     = Job Scheduler Batch Name (i.e. 'GHR')
         @p_qualifier     = Job Scheduler Qualifier (i.e. 'INTERFACES')
         @p_activity_date = Current System Date
+        @p_debug         = Debug flag (Y/N) Enables logging to table dbo.ghr_debug
 
 
     Example:
@@ -49,15 +50,17 @@ GO
                                                     4) Added logic to update tax ceiling amount to DBShrpn..employee.user_monetary_amt_1
     2.0.00  09/14/2026  CJP                     - Phase III
                                                     1) Updated bad error messages to include 'bypassing record' in the description for clarity
+            11/23/2026  CJP                         2) Added logic to enable dynamic logging
 
 ************************************************************************************/
 
 CREATE PROCEDURE dbo.usp_perform_transfer
     (
-      @p_user_id              varchar(30)
-    , @p_batchname            varchar(08)
-    , @p_qualifier            varchar(30)
-    , @p_activity_date        datetime
+      @p_user_id            varchar(30)
+    , @p_batchname          varchar(08)
+    , @p_qualifier          varchar(30)
+    , @p_activity_date      datetime
+    , @p_debug              char(1) = 'N'
     )
 AS
 
@@ -230,6 +233,26 @@ BEGIN
 
 
     BEGIN TRY
+
+        ---------------------------------------------------------------------------
+        -- Log procedure parameter values
+        ---------------------------------------------------------------------------
+        IF (@p_debug = 'Y')
+        BEGIN
+
+            INSERT INTO DBShrpn.dbo.ghr_debug (text_line)
+            VALUES
+                  (REPLICATE('*', 50))
+                ,('Procedure DBShrpn.dbo.usp_ins_position_title - Parameters:')
+                ,('@p_user_id = '       + @v_single_quote + @p_user_id                              + @v_single_quote)
+                ,('@p_batchname = '     + @v_single_quote + @p_batchname                            + @v_single_quote)
+                ,('@p_qualifier = '     + @v_single_quote + @p_qualifier                            + @v_single_quote)
+                ,('@p_activity_date = ' + @v_single_quote + CONVERT(varchar, @p_activity_date, 112) + @v_single_quote)
+                ,('@p_debug = '         + @v_single_quote + @p_debug                                + @v_single_quote)
+                ,(REPLICATE('*', 50))
+                ,('')
+
+        END
 
 
         SET @v_step_position = 'Declaring cursor crsrHR'
@@ -894,34 +917,39 @@ BEGIN
                 -- Execute Transfer
                 ---------------------------------------------------------------------------
 
-/*
-                -- Debug
-                SET @v_step_position = 'Execute DBShrpn.dbo.usp_upd_hrpn_02_trn DEBUG'
 
-                INSERT DBShrpn.dbo.ghr_debug (text_line)
-                VALUES('EXECUTE DBShrpn.dbo.usp_upd_hrpn_02_trn')
-                , (' @p_emp_id '                         + '= ' + @v_single_quote + RTRIM(@emp_id)                                               + @v_single_quote)
-                , (', @p_new_empl_id '                   + '= ' + @v_single_quote + RTRIM(@empl_id)                                              + @v_single_quote)
-                , (', @p_transfer_date '                 + '= ' + @v_single_quote + CONVERT(char(8), @eff_date, 112)                           + @v_single_quote)
-                , (', @p_assign_to '                     + '= ' + @v_single_quote + RTRIM(@cur_emp_asgn_assigned_to_code)                        + @v_single_quote)
-                , (', @p_job_or_pos_id '                 + '= ' + @v_single_quote + RTRIM(@job_or_pos_id)                                        + @v_single_quote)
-                , (', @p_org_grp_id '                    + '= ' + @v_single_quote + RTRIM(@organization_group_id))                               + @v_single_quote)
-                , (', @p_org_chart_name '                + '= ' + @v_single_quote + RTRIM(@organization_chart_name)                              + @v_single_quote)
-                , (', @p_org_unit_name '                 + '= ' + @v_single_quote + RTRIM(@organization_unit_name)                               + @v_single_quote)
-                , (', @p_location '                      + '= ' + @v_single_quote + RTRIM(@emp_location_code)                                    + @v_single_quote)
-                , (', @p_new_tax_entity_id '             + '= ' + @v_single_quote + RTRIM(@new_tax_entity)                                       + @v_single_quote)
-                , (', @p_old_tax_entity_id '             + '= ' + @v_single_quote + RTRIM(@cur_tax_entity_id)                                    + @v_single_quote)
-                , (', @p_eff_date '                      + '= ' + @v_single_quote + CONVERT(char(8), @cur_eempl_eff_date, 112)                   + @v_single_quote)
-                , (', @p_pay_group '                     + '= ' + @v_single_quote + RTRIM(@pay_group_id)                                         + @v_single_quote)
-                , (', @p_emp_info_change_reason '        + '= ' + @v_single_quote + RTRIM(@employment_info_chg_reason_cd)                        + @v_single_quote)
-                , (', @p_job_position_end_date '         + '= ' + @v_single_quote + CONVERT(char(8), @cur_emp_asgn_job_position_end_date, 112)   + @v_single_quote)
-                , (', @p_assignment_end_date '           + '= ' + @v_single_quote + CONVERT(char(8), @cur_emp_asgn_end_date, 112)                + @v_single_quote)
-                , (', @p_xfer_different_taxing_cntry '   + '= ' + @v_single_quote + 'N'                                                          + @v_single_quote)
-                , (', @p_new_empl_taxing_country_cd '    + '= ' + @v_single_quote + RTRIM(@new_taxing_country_code)                              + @v_single_quote)
-                , (', @p_new_empl_curr_code '            + '= ' + @v_single_quote + RTRIM(@new_curr_code)                                        + @v_single_quote)
-                , (', @p_use_policy_xfer_options '       + '= ' + @v_single_quote + 'Y'                                                          + @v_single_quote)
-                , (' ');
-*/
+                -- Debug
+                IF (@p_debug = 'Y')
+                BEGIN
+                    SET @v_step_position = 'Execute DBShrpn.dbo.usp_upd_hrpn_02_trn DEBUG'
+
+                    INSERT DBShrpn.dbo.ghr_debug (text_line)
+                    VALUES
+                      ('EXECUTE DBShrpn.dbo.usp_upd_hrpn_02_trn')
+                    , (' @p_emp_id '                         + '= ' + @v_single_quote + RTRIM(@emp_id)                                               + @v_single_quote)
+                    , (', @p_new_empl_id '                   + '= ' + @v_single_quote + RTRIM(@empl_id)                                              + @v_single_quote)
+                    , (', @p_transfer_date '                 + '= ' + @v_single_quote + CONVERT(varchar, @eff_date, 112)                             + @v_single_quote)
+                    , (', @p_assign_to '                     + '= ' + @v_single_quote + RTRIM(@cur_emp_asgn_assigned_to_code)                        + @v_single_quote)
+                    , (', @p_job_or_pos_id '                 + '= ' + @v_single_quote + RTRIM(@job_or_pos_id)                                        + @v_single_quote)
+                    , (', @p_org_grp_id '                    + '= ' + @v_single_quote + RTRIM(@organization_group_id)                                + @v_single_quote)
+                    , (', @p_org_chart_name '                + '= ' + @v_single_quote + RTRIM(@organization_chart_name)                              + @v_single_quote)
+                    , (', @p_org_unit_name '                 + '= ' + @v_single_quote + RTRIM(@organization_unit_name)                               + @v_single_quote)
+                    , (', @p_location '                      + '= ' + @v_single_quote + RTRIM(@emp_location_code)                                    + @v_single_quote)
+                    , (', @p_new_tax_entity_id '             + '= ' + @v_single_quote + RTRIM(@new_tax_entity)                                       + @v_single_quote)
+                    , (', @p_old_tax_entity_id '             + '= ' + @v_single_quote + RTRIM(@cur_tax_entity_id)                                    + @v_single_quote)
+                    , (', @p_eff_date '                      + '= ' + @v_single_quote + CONVERT(varchar, @cur_eempl_eff_date, 112)                   + @v_single_quote)
+                    , (', @p_pay_group '                     + '= ' + @v_single_quote + RTRIM(@pay_group_id)                                         + @v_single_quote)
+                    , (', @p_emp_info_change_reason '        + '= ' + @v_single_quote + RTRIM(@employment_info_chg_reason_cd)                        + @v_single_quote)
+                    , (', @p_job_position_end_date '         + '= ' + @v_single_quote + CONVERT(varchar, @cur_emp_asgn_job_position_end_date, 112)   + @v_single_quote)
+                    , (', @p_assignment_end_date '           + '= ' + @v_single_quote + CONVERT(varchar, @cur_emp_asgn_end_date, 112)                + @v_single_quote)
+                    , (', @p_xfer_different_taxing_cntry '   + '= ' + @v_single_quote + 'N'                                                          + @v_single_quote)
+                    , (', @p_new_empl_taxing_country_cd '    + '= ' + @v_single_quote + RTRIM(@new_taxing_country_code)                              + @v_single_quote)
+                    , (', @p_new_empl_curr_code '            + '= ' + @v_single_quote + RTRIM(@new_curr_code)                                        + @v_single_quote)
+                    , (', @p_use_policy_xfer_options '       + '= ' + @v_single_quote + 'Y'                                                          + @v_single_quote)
+                    , (' ');
+
+                END
+
 
                 SET @v_step_position = 'Execute DBShrpn.dbo.usp_upd_hrpn_02_trn'
 
@@ -949,23 +977,28 @@ BEGIN
                     , @p_use_policy_xfer_options        = 'Y'                            --   'Y' As policy_xfer_options
 
 
-/*
-                -- Debug
-                SET @v_step_position = 'Execute DBShrpn.dbo.usp_ins_hpep_02_trn DEBUG'
 
-                INSERT DBShrpn.dbo.ghr_debug (text_line)
-                VALUES('EXECUTE DBShrpn.dbo.usp_ins_hpep_02_trn')
-                , (' @p_emp_id '                    + '= ' + @v_single_quote + RTRIM(@emp_id)                     + @v_single_quote)
-                , (', @p_old_empl_id '              + '= ' + @v_single_quote + RTRIM(@cur_empl_id)                + @v_single_quote)
-                , (', @p_new_empl_id '              + '= ' + @v_single_quote + RTRIM(@empl_id)                    + @v_single_quote)
-                , (', @p_transfer_date '            + '= ' + @v_single_quote + CONVERT(char(8), @eff_date, 112) + @v_single_quote)
-                , (', @p_calendar_year '            + '= ' + @v_single_quote + CONVERT(char(4), @v_cal_year)      + @v_single_quote)
-                , (', @p_curr_code '                + '= ' + @v_single_quote + RTRIM(@new_curr_code)              + @v_single_quote)
-                , (', @p_return_to_prior_empl '     + '= ' + @v_single_quote + 'N'                                + @v_single_quote)
-                , (', @p_empl_adj_paymnt_run_type ' + '= ' + @v_single_quote + '#ADJUSTMENT'                      + @v_single_quote)
-                , (', @p_system_user_id '           + '= ' + @v_single_quote + 'DBS'                              + @v_single_quote)
-                , (', @p_pay_group_id '             + '= ' + @v_single_quote + RTRIM(@pay_group_id)               + @v_single_quote)
-*/
+                -- Debug
+                IF (@p_debug = 'Y')
+                BEGIN
+
+                    SET @v_step_position = 'Execute DBShrpn.dbo.usp_ins_hpep_02_trn DEBUG'
+
+                    INSERT DBShrpn.dbo.ghr_debug (text_line)
+                    VALUES
+                      ('EXECUTE DBShrpn.dbo.usp_ins_hpep_02_trn')
+                    , (' @p_emp_id '                    + '= ' + @v_single_quote + RTRIM(@emp_id)                     + @v_single_quote)
+                    , (', @p_old_empl_id '              + '= ' + @v_single_quote + RTRIM(@cur_empl_id)                + @v_single_quote)
+                    , (', @p_new_empl_id '              + '= ' + @v_single_quote + RTRIM(@empl_id)                    + @v_single_quote)
+                    , (', @p_transfer_date '            + '= ' + @v_single_quote + CONVERT(varchar, @eff_date, 112)   + @v_single_quote)
+                    , (', @p_calendar_year '            + '= ' + @v_single_quote + CONVERT(varchar, @v_cal_year)      + @v_single_quote)
+                    , (', @p_curr_code '                + '= ' + @v_single_quote + RTRIM(@new_curr_code)              + @v_single_quote)
+                    , (', @p_return_to_prior_empl '     + '= ' + @v_single_quote + 'N'                                + @v_single_quote)
+                    , (', @p_empl_adj_paymnt_run_type ' + '= ' + @v_single_quote + '#ADJUSTMENT'                      + @v_single_quote)
+                    , (', @p_system_user_id '           + '= ' + @v_single_quote + 'DBS'                              + @v_single_quote)
+                    , (', @p_pay_group_id '             + '= ' + @v_single_quote + RTRIM(@pay_group_id)               + @v_single_quote)
+
+                END
 
                 -- Executes transfer updates in DBShrpy (emp_pmt* tables)
                 SET @v_step_position = 'Execute DBShrpn.dbo.usp_ins_hpep_02_trn'

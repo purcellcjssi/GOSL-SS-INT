@@ -63,6 +63,7 @@ CREATE PROCEDURE dbo.usp_ins_labor_group
     , @p_qualifier                  varchar(30)
     , @p_activity_date              datetime
     , @p_eempl_audit_tbl_ind        char(1)     -- Flag to determine whether to populate SmartStream audit table for employee employment table changes
+    , @p_debug                      char(1) = 'N'
     )
 AS
 
@@ -71,7 +72,7 @@ BEGIN
     SET NOCOUNT ON
 
     DECLARE @v_step_position                varchar(255)        = 'Begin Procedure'
-
+    DECLARE @v_single_quote					char(01)            = char(39)
     DECLARE @v_END_OF_TIME_DATE             datetime            = '29991231'
     DECLARE @v_BAD_DATE_INDICATOR           datetime            = '99991231'    -- value used to populate datetime column with value from HCM that is not a valid date after conversion
 
@@ -136,6 +137,27 @@ BEGIN
 
 
     BEGIN TRY
+
+        ---------------------------------------------------------------------------
+        -- Log procedure parameter values
+        ---------------------------------------------------------------------------
+        IF (@p_debug = 'Y')
+        BEGIN
+
+            INSERT INTO DBShrpn.dbo.ghr_debug (text_line)
+            VALUES
+                  (REPLICATE('*', 50))
+                ,('Procedure DBShrpn.dbo.usp_ins_labor_group - Parameters:')
+                ,('@p_user_id = '             + @v_single_quote + @p_user_id                                + @v_single_quote)
+                ,('@p_batchname = '           + @v_single_quote + @p_batchname                              + @v_single_quote)
+                ,('@p_qualifier = '           + @v_single_quote + @p_qualifier                              + @v_single_quote)
+                ,('@p_activity_date = '       + @v_single_quote + CONVERT(char(8), @p_activity_date, 112)   + @v_single_quote)
+                ,('@p_eempl_audit_tbl_ind = ' + @v_single_quote + @p_eempl_audit_tbl_ind                    + @v_single_quote)
+                ,('@p_debug = '               + @v_single_quote + @p_debug                                  + @v_single_quote)
+                ,(REPLICATE('*', 50))
+                ,('')
+
+        END
 
 
         ---------------------------------------------------------------------------
@@ -514,6 +536,25 @@ BEGIN
                 ---------------------------------------------------------------------------
                 -- Update Employee Employment with new Labor Group
                 ---------------------------------------------------------------------------
+                IF (@p_debug = 'Y')
+                BEGIN
+
+                    SET @v_step_position = 'DEBUG - EXEC DBShrpn.dbo.usp_upd_emp_employment '
+
+                    INSERT DBShrpn.dbo.ghr_debug (text_line)
+                    VALUES
+                      ('EXEC DBShrpn.dbo.usp_upd_emp_employment')
+                    , (', @p_user_id                    = ' + @v_single_quote + RTRIM(@p_user_id)                               + @v_single_quote)
+                    , (', @p_activity_date              = ' + @v_single_quote + CONVERT(varchar, @p_activity_date, 112)         + @v_single_quote)
+                    , (', @p_emp_id                     = ' + @v_single_quote + RTRIM(@emp_id)                                  + @v_single_quote)
+                    , (', @p_eff_date                   = ' + @v_single_quote + CONVERT(varchar, @eff_date, 112)                + @v_single_quote)
+                    , (', @p_cur_eempl_eff_date         = ' + @v_single_quote + CONVERT(varchar, @cur_eempl_eff_date, 112)      + @v_single_quote)
+                    , (', @p_labor_grp_code             = ' + @v_single_quote + RTRIM(@labor_grp_code)                          + @v_single_quote)
+                    , (', @p_pay_group_id               = ' + @v_single_quote + RTRIM(@cur_pay_group_id)                        + @v_single_quote)
+                    , (', @p_eempl_audit_tbl_ind        = ' + @v_single_quote + RTRIM(@p_eempl_audit_tbl_ind)                   + @v_single_quote)
+                END
+
+
                 EXEC @w_status = DBShrpn.dbo.usp_upd_emp_employment
                       @p_user_id                    = @p_user_id
                     , @p_activity_date              = @p_activity_date

@@ -26,10 +26,11 @@ GO
         is created in the table.
 
     Parameters:
-        @p_user_id       =  User ID (i.e. 'DBS')
+        @p_user_id       = User ID (i.e. 'DBS')
         @p_batchname     = Job Scheduler Batch Name (i.e. 'GHR')
         @p_qualifier     = Job Scheduler Qualifier (i.e. 'INTERFACES')
         @p_activity_date = Current System Date
+        @p_debug         = Debug flag (Y/N) Enables logging to table dbo.ghr_debug
 
 
     Example:
@@ -46,6 +47,7 @@ GO
    1.0.00   08/27/2025  CJP                     - created procedure
     2.0.00  09/14/2026  CJP                     - Phase III
                                                     1) Updated bad error messages to include 'bypassing record' in the description for clarity
+            11/23/2026  CJP                         2) Added logic to enable dynamic logging
 
 ************************************************************************************/
 
@@ -55,6 +57,7 @@ CREATE PROCEDURE dbo.usp_ins_position_title
     , @p_batchname          varchar(08)
     , @p_qualifier          varchar(30)
     , @p_activity_date      datetime
+    , @p_debug              char(1) = 'N'
     )
 AS
 
@@ -180,6 +183,24 @@ BEGIN
 
 
     BEGIN TRY
+
+        -- Log procedure parameter values
+        IF (@p_debug = 'Y')
+        BEGIN
+
+            INSERT INTO DBShrpn.dbo.ghr_debug (text_line)
+            VALUES
+                  (REPLICATE('*', 50))
+                ,('Procedure DBShrpn.dbo.usp_ins_position_title - Parameters:')
+                ,('@p_user_id = '       + @v_single_quote + @p_user_id                              + @v_single_quote)
+                ,('@p_batchname = '     + @v_single_quote + @p_batchname                            + @v_single_quote)
+                ,('@p_qualifier = '     + @v_single_quote + @p_qualifier                            + @v_single_quote)
+                ,('@p_activity_date = ' + @v_single_quote + CONVERT(char(8), @p_activity_date, 112) + @v_single_quote)
+                ,('@p_debug = '         + @v_single_quote + @p_debug                                + @v_single_quote)
+                ,(REPLICATE('*', 50))
+                ,('')
+
+        END
 
 
         SET @v_step_position = 'Declaring cursor crsrHR'
@@ -564,55 +585,60 @@ BEGIN
                 IF (@cur_ea_job_or_pos_id <> @job_or_pos_id)
                     BEGIN
 
-                        /*
+                        -- Debug
                         SET @v_step_position = 'Emp Assignment - EXEC DBShrpn.dbo.usp_hsp_upd_hasg_reassign Debug'
 
-                        -- Debug
-                        INSERT DBShrpn.dbo.ghr_debug (text_line)
-                        VALUES ('EXEC DBShrpn.dbo.usp_hsp_upd_hasg_reassign')
-                        , ('  @asg_cur_id                  = ' + @v_single_quote + RTRIM(@emp_id)                                        + @v_single_quote)
-                        , (', @asg_cur_assign_to           = ' + @v_single_quote + @v_ASSIGNED_TO_CODE                                   + @v_single_quote)
-                        , (', @asg_cur_assign_id           = ' + @v_single_quote + RTRIM(@cur_ea_job_or_pos_id)                          + @v_single_quote)
-                        , (', @asg_cur_eff_date            = ' + @v_single_quote + CONVERT(char(8), @cur_ea_eff_date, 112)               + @v_single_quote)
-                        , (', @asg_cur_chgstamp            = ' +                   CONVERT(varchar, @cur_ea_chgstamp, 0)                                  )
-                        , (', @asg_new_assign_to           = ' + @v_single_quote + @v_ASSIGNED_TO_CODE                                   + @v_single_quote)
-                        , (', @asg_new_assign_id           = ' + @v_single_quote + RTRIM(@job_or_pos_id)                                 + @v_single_quote)
-                        , (', @asg_new_assign_reason       = ' + @v_single_quote + @v_EMPTY_SPACE                                        + @v_single_quote)
-                        , (', @asg_new_beg_date            = ' + @v_single_quote + CONVERT(char(8), @eff_date, 112)                    + @v_single_quote)
-                        , (', @asg_new_end_date            = ' + @v_single_quote + CONVERT(char(8), @v_END_OF_TIME_DATE, 112)            + @v_single_quote)
-                        , (', @asg_fte_error_level         = ' + @v_single_quote + @v_EMPTY_SPACE                                        + @v_single_quote)
-                        , (', @asg_incumbent_error_level   = ' + @v_single_quote + @v_EMPTY_SPACE                                        + @v_single_quote)    -- was 'R' in WTW
-                        , (', @asf_fs_error_level          = ' + @v_single_quote + @v_EMPTY_SPACE                                        + @v_single_quote)
-                        , (', @asg_new_work_time_ind       = ' + @v_single_quote + @cur_ea_work_tm_code                                  + @v_single_quote)
-                        , (', @asg_new_std_hours           = ' +                   CONVERT(varchar, @cur_ea_standard_work_hrs, 0)                         )
-                        , (', @asg_new_std_work_period     = ' + @v_single_quote + @cur_ea_standard_work_pd_id                           + @v_single_quote)
-                        , (', @asg_new_salary_chg_date     = ' + @v_single_quote + CONVERT(char(8), @cur_ea_salary_change_date, 112)     + @v_single_quote)
-                        , (', @asg_new_pd_salry            = ' +                   CONVERT(varchar, @cur_ea_pd_salary_amt, 0)                             )
-                        , (', @asg_new_hourly_rate         = ' +                   CONVERT(varchar, @cur_ea_hourly_pay_rate, 0)                           )
-                        , (', @asg_new_annual_salry        = ' +                   CONVERT(varchar, @cur_ea_annual_salary_amt, 0)                         )
-                        , (', @asg_new_fte                 = ' +                   CONVERT(varchar, @v_calc_fte, 0)                                       )
-                        , (', @app_offer_curr_code         = ' + @v_single_quote + @cur_ea_curr_code                                     + @v_single_quote)
-                        , (', @app_offer_pd_salary_time_cd = ' + @v_single_quote + @cur_ea_pd_salary_tm_pd_id                            + @v_single_quote)
-                        , (', @app_offer_org_chart_id      = ' + @v_single_quote + @v_ORGANIZATION_CHART_NAME                            + @v_single_quote)
-                        , (', @app_offer_org_unit_id       = ' + @v_single_quote + @v_EMPTY_SPACE                                        + @v_single_quote)
-                        , (', @app_offer_pay_hours_rpt_ind = ' + @v_single_quote + 'N'                                                   + @v_single_quote)
-                        , (', @app_offer_work_shift_code   = ' + @v_single_quote + @v_EMPTY_SPACE                                        + @v_single_quote)
-                        , (', @app_offer_pay_grade         = ' + @v_single_quote + @v_EMPTY_SPACE                                        + @v_single_quote)
-                        , (', @app_offer_points            = 0'                                                                                           )
-                        , (', @app_offer_salary_step       = 0'                                                                                           )
-                        , (', @app_offer_mgr_emp_id        = ' + @v_single_quote + @v_EMPTY_SPACE                                        + @v_single_quote)
-                        , (', @from_window                 = ' + @v_single_quote + 'HASG'                                                + @v_single_quote)
-                        , (', @w_primary_ind               = ' + @v_single_quote + 'Y'                                                   + @v_single_quote)
-                        , (', @w_new_guar_pd_salry         = 0'                                                                                           )
-                        , (', @w_new_guar_hourly_rate      = 0'                                                                                           )
-                        , (', @w_new_guar_annual_salry     = 0'                                                                                           )
-                        , (', @w_new_ref_pd_salry          = 0'                                                                                           )
-                        , (', @w_new_ref_hourly_rate       = 0'                                                                                           )
-                        , (', @w_new_ref_salry             = 0'                                                                                           )
-                        , (', @w_new_org_group             = ' +                   CONVERT(varchar, @v_ORGANIZATION_GROUP_ID, 0)                          )
-                        , (', @app_new_shift_rate_id       = ' + @v_single_quote + @v_EMPTY_SPACE                                        + @v_single_quote)
-                        , (' ');
-                        */
+                        IF (@p_debug = 'Y')
+                        BEGIN
+
+                            -- Debug
+                            INSERT DBShrpn.dbo.ghr_debug (text_line)
+                            VALUES
+                              ('EXEC DBShrpn.dbo.usp_hsp_upd_hasg_reassign')
+                            , ('  @asg_cur_id                  = ' + @v_single_quote + RTRIM(@emp_id)                                        + @v_single_quote)
+                            , (', @asg_cur_assign_to           = ' + @v_single_quote + @v_ASSIGNED_TO_CODE                                   + @v_single_quote)
+                            , (', @asg_cur_assign_id           = ' + @v_single_quote + RTRIM(@cur_ea_job_or_pos_id)                          + @v_single_quote)
+                            , (', @asg_cur_eff_date            = ' + @v_single_quote + CONVERT(varchar, @cur_ea_eff_date, 112)               + @v_single_quote)
+                            , (', @asg_cur_chgstamp            = ' +                   CONVERT(varchar, @cur_ea_chgstamp, 0)                                  )
+                            , (', @asg_new_assign_to           = ' + @v_single_quote + @v_ASSIGNED_TO_CODE                                   + @v_single_quote)
+                            , (', @asg_new_assign_id           = ' + @v_single_quote + RTRIM(@job_or_pos_id)                                 + @v_single_quote)
+                            , (', @asg_new_assign_reason       = ' + @v_single_quote + @v_EMPTY_SPACE                                        + @v_single_quote)
+                            , (', @asg_new_beg_date            = ' + @v_single_quote + CONVERT(varchar, @eff_date, 112)                    + @v_single_quote)
+                            , (', @asg_new_end_date            = ' + @v_single_quote + CONVERT(varchar, @v_END_OF_TIME_DATE, 112)            + @v_single_quote)
+                            , (', @asg_fte_error_level         = ' + @v_single_quote + @v_EMPTY_SPACE                                        + @v_single_quote)
+                            , (', @asg_incumbent_error_level   = ' + @v_single_quote + @v_EMPTY_SPACE                                        + @v_single_quote)    -- was 'R' in WTW
+                            , (', @asf_fs_error_level          = ' + @v_single_quote + @v_EMPTY_SPACE                                        + @v_single_quote)
+                            , (', @asg_new_work_time_ind       = ' + @v_single_quote + @cur_ea_work_tm_code                                  + @v_single_quote)
+                            , (', @asg_new_std_hours           = ' +                   CONVERT(varchar, @cur_ea_standard_work_hrs, 0)                         )
+                            , (', @asg_new_std_work_period     = ' + @v_single_quote + @cur_ea_standard_work_pd_id                           + @v_single_quote)
+                            , (', @asg_new_salary_chg_date     = ' + @v_single_quote + CONVERT(varchar, @cur_ea_salary_change_date, 112)     + @v_single_quote)
+                            , (', @asg_new_pd_salry            = ' +                   CONVERT(varchar, @cur_ea_pd_salary_amt, 0)                             )
+                            , (', @asg_new_hourly_rate         = ' +                   CONVERT(varchar, @cur_ea_hourly_pay_rate, 0)                           )
+                            , (', @asg_new_annual_salry        = ' +                   CONVERT(varchar, @cur_ea_annual_salary_amt, 0)                         )
+                            , (', @asg_new_fte                 = ' +                   CONVERT(varchar, @v_calc_fte, 0)                                       )
+                            , (', @app_offer_curr_code         = ' + @v_single_quote + @cur_ea_curr_code                                     + @v_single_quote)
+                            , (', @app_offer_pd_salary_time_cd = ' + @v_single_quote + @cur_ea_pd_salary_tm_pd_id                            + @v_single_quote)
+                            , (', @app_offer_org_chart_id      = ' + @v_single_quote + @v_ORGANIZATION_CHART_NAME                            + @v_single_quote)
+                            , (', @app_offer_org_unit_id       = ' + @v_single_quote + @v_EMPTY_SPACE                                        + @v_single_quote)
+                            , (', @app_offer_pay_hours_rpt_ind = ' + @v_single_quote + 'N'                                                   + @v_single_quote)
+                            , (', @app_offer_work_shift_code   = ' + @v_single_quote + @v_EMPTY_SPACE                                        + @v_single_quote)
+                            , (', @app_offer_pay_grade         = ' + @v_single_quote + @v_EMPTY_SPACE                                        + @v_single_quote)
+                            , (', @app_offer_points            = 0'                                                                                           )
+                            , (', @app_offer_salary_step       = 0'                                                                                           )
+                            , (', @app_offer_mgr_emp_id        = ' + @v_single_quote + @v_EMPTY_SPACE                                        + @v_single_quote)
+                            , (', @from_window                 = ' + @v_single_quote + 'HASG'                                                + @v_single_quote)
+                            , (', @w_primary_ind               = ' + @v_single_quote + 'Y'                                                   + @v_single_quote)
+                            , (', @w_new_guar_pd_salry         = 0'                                                                                           )
+                            , (', @w_new_guar_hourly_rate      = 0'                                                                                           )
+                            , (', @w_new_guar_annual_salry     = 0'                                                                                           )
+                            , (', @w_new_ref_pd_salry          = 0'                                                                                           )
+                            , (', @w_new_ref_hourly_rate       = 0'                                                                                           )
+                            , (', @w_new_ref_salry             = 0'                                                                                           )
+                            , (', @w_new_org_group             = ' +                   CONVERT(varchar, @v_ORGANIZATION_GROUP_ID, 0)                          )
+                            , (', @app_new_shift_rate_id       = ' + @v_single_quote + @v_EMPTY_SPACE                                        + @v_single_quote)
+                            , (' ');
+
+                        END
 
                         SET @v_step_position = 'Emp Assignment - EXEC DBShrpn.dbo.usp_hsp_upd_hasg_reassign'
 

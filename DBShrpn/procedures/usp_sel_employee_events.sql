@@ -46,8 +46,7 @@ GO
 
 
     Parameters:
-        None
-
+        @p_debug = Debug flag to enable debug logging. Default is 'N' for no debug logging. If set to 'Y' then debug logging will be enabled.
 
     Example:
         exec dbo.usp_sel_employee_events
@@ -67,11 +66,14 @@ GO
     1.0.02  07/20/2026  CJP                     - Phase III
                                                     1) Added columns pay frequency, pay rate type and pay schedule code to temp table
                                                     2) Enabled salary change events to be processed in the interface
+            11/23/2026                              3) Added logic to enable dynamic logging
 
 ************************************************************************************/
 
 CREATE PROCEDURE dbo.usp_sel_employee_events
-
+    (
+        @p_debug char(1) = 'N'
+    )
 AS
 
 BEGIN
@@ -79,6 +81,7 @@ BEGIN
     SET NOCOUNT ON
 
     DECLARE @v_step_position                        varchar(255)        = 'Begin Procedure'
+    DECLARE @v_single_quote                         char(01)            = char(39)
 
     DECLARE @v_END_OF_TIME_DATE                     datetime            = '29991231'
     DECLARE @v_BAD_DATE_INDICATOR                   datetime            = '99991231'    -- value used to populate datetime column with value from HCM that is not a valid date after conversion
@@ -199,8 +202,8 @@ BEGIN
         FROM DBSpscb.dbo.psc_step
         WHERE   (psc_userid    = @w_userid)
             AND (psc_batchname = @v_PSC_BATCHNAME)
-            AND (psc_qualifier = @w_PSC_QUALIFIER)
-            AND (psc_pgm_parms = @w_PSC_PSC_PGM_PARMS)     -- bulkcopy step
+            AND (psc_qualifier = @v_PSC_QUALIFIER)
+            AND (psc_pgm_parms = @v_PSC_PSC_PGM_PARMS)     -- bulkcopy step
 
 
 
@@ -230,6 +233,27 @@ BEGIN
         TRUNCATE TABLE DBShrpn.dbo.ghr_debug;
         ---------------------------------------------------------------------------
         ---------------------------------------------------------------------------
+
+
+        ---------------------------------------------------------------------------
+        -- Log procedure parameter values
+        ---------------------------------------------------------------------------
+        IF (@p_debug = 'Y')
+        BEGIN
+
+            INSERT INTO DBShrpn.dbo.ghr_debug (text_line)
+            VALUES
+                  (REPLICATE('*', 50))
+                ,('Procedure DBShrpn.dbo.usp_sel_employee_events - Internal Parameters:')
+                ,('@w_userid = '              + @v_single_quote + @w_userid                                 + @v_single_quote)
+                ,('@w_activity_date = '       + @v_single_quote + CONVERT(varchar, @w_activity_date, 112)   + @v_single_quote)
+                ,('@w_eempl_audit_tbl_ind = ' + @v_single_quote + @w_eempl_audit_tbl_ind                    + @v_single_quote)
+                ,('@p_debug = '               + @v_single_quote + @p_debug                                  + @v_single_quote)
+                ,(REPLICATE('*', 50))
+                ,('')
+
+        END
+
 
         ---------------------------------------------------------------------------
         -- Load imported data to temp table
@@ -512,8 +536,9 @@ BEGIN
             EXEC @w_status = DBShrpn.dbo.usp_ins_new_hire
                   @p_user_id         = @w_userid
                 , @p_batchname       = @v_PSC_BATCHNAME
-                , @p_qualifier       = @w_PSC_QUALIFIER
+                , @p_qualifier       = @v_PSC_QUALIFIER
                 , @p_activity_date   = @w_activity_date
+				, @p_debug           = @p_debug
 
             -- Log error if return code is not zero
             IF (@w_status <> 0)
@@ -551,13 +576,11 @@ BEGIN
                    )
         BEGIN
             EXEC	DBShrpn.dbo.usp_ins_salary_change
-                    @w_userid,
-                    @v_PSC_BATCHNAME,
-                    @w_PSC_QUALIFIER,
-                    @w_activity_date,
-                    @w_userid,
-                    @w_activity_status,
-                    @w_status
+						  @p_user_id         = @w_userid
+						, @p_batchname       = @v_PSC_BATCHNAME
+						, @p_qualifier       = @v_PSC_QUALIFIER
+						, @p_activity_date   = @w_activity_date
+						, @p_debug           = @p_debug
         END
 
 
@@ -578,8 +601,9 @@ BEGIN
             EXEC @w_status = DBShrpn.dbo.usp_perform_transfer
                         @p_user_id         = @w_userid
                       , @p_batchname       = @v_PSC_BATCHNAME
-                      , @p_qualifier       = @w_PSC_QUALIFIER
+                      , @p_qualifier       = @v_PSC_QUALIFIER
                       , @p_activity_date   = @w_activity_date
+					  , @p_debug           = @p_debug
 
             -- Log error if return code is not zero
             IF (@w_status <> 0)
@@ -619,8 +643,9 @@ BEGIN
             EXEC @w_status = DBShrpn.dbo.usp_ins_name_change
                               @p_user_id         = @w_userid
                             , @p_batchname       = @v_PSC_BATCHNAME
-                            , @p_qualifier       = @w_PSC_QUALIFIER
+                            , @p_qualifier       = @v_PSC_QUALIFIER
                             , @p_activity_date   = @w_activity_date
+							, @p_debug           = @p_debug
 
             -- Log error if return code is not zero
             IF (@w_status <> 0)
@@ -661,8 +686,9 @@ BEGIN
             EXEC @w_status = DBShrpn.dbo.usp_ins_status_change
                         @p_user_id         = @w_userid
                       , @p_batchname       = @v_PSC_BATCHNAME
-                      , @p_qualifier       = @w_PSC_QUALIFIER
+                      , @p_qualifier       = @v_PSC_QUALIFIER
                       , @p_activity_date   = @w_activity_date
+					  , @p_debug           = @p_debug
 
             -- Log error if return code is not zero
             IF (@w_status <> 0)
@@ -702,8 +728,9 @@ BEGIN
             EXEC @w_status = DBShrpn.dbo.usp_ins_pay_element
                         @p_user_id         = @w_userid
                       , @p_batchname       = @v_PSC_BATCHNAME
-                      , @p_qualifier       = @w_PSC_QUALIFIER
+                      , @p_qualifier       = @v_PSC_QUALIFIER
                       , @p_activity_date   = @w_activity_date
+					  , @p_debug           = @p_debug
 
             -- Log error if return code is not zero
             IF (@w_status <> 0)
@@ -744,9 +771,10 @@ BEGIN
             EXEC @w_status = DBShrpn.dbo.usp_ins_pay_group
                         @p_user_id             = @w_userid
                       , @p_batchname           = @v_PSC_BATCHNAME
-                      , @p_qualifier           = @w_PSC_QUALIFIER
+                      , @p_qualifier           = @v_PSC_QUALIFIER
                       , @p_activity_date       = @w_activity_date
                       , @p_eempl_audit_tbl_ind = @w_eempl_audit_tbl_ind
+					  , @p_debug               = @p_debug
 
             -- Log error if return code is not zero
             IF (@w_status <> 0)
@@ -787,9 +815,10 @@ BEGIN
             EXEC @w_status = DBShrpn.dbo.usp_ins_labor_group
                         @p_user_id             = @w_userid
                       , @p_batchname           = @v_PSC_BATCHNAME
-                      , @p_qualifier           = @w_PSC_QUALIFIER
+                      , @p_qualifier           = @v_PSC_QUALIFIER
                       , @p_activity_date       = @w_activity_date
                       , @p_eempl_audit_tbl_ind = @w_eempl_audit_tbl_ind
+					  , @p_debug               = @p_debug
 
             -- Log error if return code is not zero
             IF (@w_status <> 0)
@@ -830,8 +859,9 @@ BEGIN
             EXEC @w_status = DBShrpn.dbo.usp_ins_position_title
                         @p_user_id         = @w_userid
                       , @p_batchname       = @v_PSC_BATCHNAME
-                      , @p_qualifier       = @w_PSC_QUALIFIER
+                      , @p_qualifier       = @v_PSC_QUALIFIER
                       , @p_activity_date   = @w_activity_date
+					  , @p_debug           = @p_debug
 
             -- Log error if return code is not zero
             IF (@w_status <> 0)
@@ -855,7 +885,11 @@ BEGIN
 
         END
 
-END_EXECUTION:
+        -- Debug Logging Output
+        IF (@p_debug = 'Y')
+            SELECT row_id
+                 , text_line
+            FROM DBShrpn.dbo.ghr_debug
 
 
     END TRY
@@ -877,7 +911,7 @@ END_EXECUTION:
         EXEC DBSpscb.dbo.psp_ins_psc_putmsg_2
               @userid   = @w_userid
             , @batch    = @v_PSC_BATCHNAME
-            , @qual     = @w_PSC_QUALIFIER
+            , @qual     = @v_PSC_QUALIFIER
             , @msgno    = @ErrorNumber
             , @severity = 0
             , @text     = @ErrorMessage

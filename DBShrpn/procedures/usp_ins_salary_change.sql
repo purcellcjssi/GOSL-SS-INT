@@ -29,6 +29,7 @@ GO
         @p_batchname     = Job Scheduler Batch Name (i.e. 'GHR')
         @p_qualifier     = Job Scheduler Qualifier (i.e. 'INTERFACES')
         @p_activity_date = Current System Date
+        @p_debug         = Debug flag (Y/N) Enables logging to table dbo.ghr_debug
 
 
     Example:
@@ -47,6 +48,7 @@ GO
                                                     1) Added columns pay_frequency_code, pay_rate_type_code, and pay_sched_code
                                                     2) Update salary setup logic to use pay frequency code
                                                     3) Updated bad error messages to include 'bypassing record' in the description for clarity
+            11/23/2026  CJP                         4) Added logic to enable dynamic logging
 
 ************************************************************************************/
 
@@ -56,6 +58,7 @@ CREATE PROCEDURE dbo.usp_ins_salary_change
     , @p_batchname          varchar(08)
     , @p_qualifier          varchar(30)
     , @p_activity_date      datetime
+    , @p_debug              char(1) = 'N'
     )
 AS
 
@@ -186,6 +189,27 @@ BEGIN
         )
 
     BEGIN TRY
+
+        ---------------------------------------------------------------------------
+        -- Log procedure parameter values
+        ---------------------------------------------------------------------------
+        IF (@p_debug = 'Y')
+        BEGIN
+
+            INSERT INTO DBShrpn.dbo.ghr_debug (text_line)
+            VALUES
+                  (REPLICATE('*', 50))
+                ,('Procedure DBShrpn.dbo.usp_ins_salary_change - Parameters:')
+                ,('@p_user_id = '       + @v_single_quote + @p_user_id                              + @v_single_quote)
+                ,('@p_batchname = '     + @v_single_quote + @p_batchname                            + @v_single_quote)
+                ,('@p_qualifier = '     + @v_single_quote + @p_qualifier                            + @v_single_quote)
+                ,('@p_activity_date = ' + @v_single_quote + CONVERT(char(8), @p_activity_date, 112) + @v_single_quote)
+                ,('@p_debug = '         + @v_single_quote + @p_debug                                + @v_single_quote)
+                ,(REPLICATE('*', 50))
+                ,('')
+
+        END
+
 
         SET @v_step_position = 'Declaring cursor crsrHR'
 
@@ -726,54 +750,60 @@ BEGIN
                         SET @v_step_position = 'Emp Assignment - Reassign Debug'
 
                         -- Debug
-                        INSERT DBShrpn.dbo.ghr_debug (text_line)
-                        VALUES ('EXEC DBShrpn.dbo.usp_hsp_upd_hasg_reassign')
-                        , ('  @asg_cur_id                  = ' + @v_single_quote + RTRIM(@emp_id)                                        + @v_single_quote)
-                        , (', @asg_cur_assign_to           = ' + @v_single_quote + @v_ASSIGNED_TO_CODE                                   + @v_single_quote)
-                        , (', @asg_cur_assign_id           = ' + @v_single_quote + RTRIM(@cur_ea_job_or_pos_id)                          + @v_single_quote)
-                        , (', @asg_cur_eff_date            = ' + @v_single_quote + CONVERT(char(8), @cur_ea_eff_date, 112)               + @v_single_quote)
-                        , (', @asg_cur_chgstamp            = ' +                   CONVERT(varchar, @cur_ea_chgstamp, 0)                                  )
-                        , (', @asg_new_assign_to           = ' + @v_single_quote + @v_ASSIGNED_TO_CODE                                   + @v_single_quote)
-                        , (', @asg_new_assign_id           = ' + @v_single_quote + RTRIM(@job_or_pos_id)                                 + @v_single_quote)
-                        , (', @asg_new_assign_reason       = ' + @v_single_quote + @v_EMPTY_SPACE                                        + @v_single_quote)
-                        , (', @asg_new_beg_date            = ' + @v_single_quote + CONVERT(char(8), @eff_date, 112)                    + @v_single_quote)
-                        , (', @asg_new_end_date            = ' + @v_single_quote + CONVERT(char(8), @v_END_OF_TIME_DATE, 112)            + @v_single_quote)
-                        , (', @asg_fte_error_level         = ' + @v_single_quote + @v_EMPTY_SPACE                                        + @v_single_quote)
-                        , (', @asg_incumbent_error_level   = ' + @v_single_quote + @v_EMPTY_SPACE                                        + @v_single_quote)    -- was 'R' in WTW
-                        , (', @asf_fs_error_level          = ' + @v_single_quote + @v_EMPTY_SPACE                                        + @v_single_quote)
-                        , (', @asg_new_work_time_ind       = ' + @v_single_quote + @w_work_tm_code                                       + @v_single_quote)
-                        , (', @asg_new_std_hours           = ' +                   CONVERT(varchar, @w_standard_work_hrs, 0)                              )
-                        , (', @asg_new_std_work_period     = ' + @v_single_quote + @w_standard_work_pd_id                                + @v_single_quote)
-                        , (', @asg_new_salary_chg_date     = ' + @v_single_quote + CONVERT(char(8), @eff_date, 112)                      + @v_single_quote)
-                        , (', @asg_new_pd_salry            = ' +                   CONVERT(varchar, @w_pd_salary_amt, 0)                                  )
-                        , (', @asg_new_hourly_rate         = ' +                   CONVERT(varchar, @w_hourly_pay_rate, 0)                                )
-                        , (', @asg_new_annual_salry        = ' +                   CONVERT(varchar, @w_annual_salary_amt, 0)                              )
-                        , (', @asg_new_fte                 = ' +                   CONVERT(varchar, @w_calc_fte, 0)                                       )
-                        , (', @app_offer_curr_code         = ' + @v_single_quote + @w_curr_code                                          + @v_single_quote)     -- char(03)
-                        , (', @app_offer_pd_salary_time_cd = ' + @v_single_quote + @w_pd_salary_tm_pd_id                                 + @v_single_quote)
-                        , (', @app_offer_org_chart_id      = ' + @v_single_quote + @v_ORGANIZATION_CHART_NAME                            + @v_single_quote)
-                        , (', @app_offer_org_unit_id       = ' + @v_single_quote + @v_EMPTY_SPACE                                        + @v_single_quote)
-                        , (', @app_offer_pay_hours_rpt_ind = ' + @v_single_quote + 'N'                                                   + @v_single_quote)
-                        , (', @app_offer_work_shift_code   = ' + @v_single_quote + @v_EMPTY_SPACE                                        + @v_single_quote)
-                        , (', @app_offer_pay_grade         = ' + @v_single_quote + @v_EMPTY_SPACE                                        + @v_single_quote)
-                        , (', @app_offer_points            = 0'                                                                                           )
-                        , (', @app_offer_salary_step       = 0'                                                                                           )
-                        , (', @app_offer_mgr_emp_id        = ' + @v_single_quote + @v_EMPTY_SPACE                                        + @v_single_quote)
-                        , (', @from_window                 = ' + @v_single_quote + 'HASG'                                                + @v_single_quote)
-                        , (', @w_primary_ind               = ' + @v_single_quote + 'Y'                                                   + @v_single_quote)
-                        , (', @w_new_guar_pd_salry         = 0'                                                                                           )
-                        , (', @w_new_guar_hourly_rate      = 0'                                                                                           )
-                        , (', @w_new_guar_annual_salry     = 0'                                                                                           )
-                        , (', @w_new_ref_pd_salry          = 0'                                                                                           )
-                        , (', @w_new_ref_hourly_rate       = 0'                                                                                           )
-                        , (', @w_new_ref_salry             = 0'                                                                                           )
-                        , (', @w_new_org_group             = ' +                   CONVERT(varchar, @v_ORGANIZATION_GROUP_ID, 0)                          )         -- NOT USED IN PROCEDURE
-                        , (', @app_new_shift_rate_id       = ' + @v_single_quote + @v_EMPTY_SPACE                                        + @v_single_quote)
-                        , (' ');
+                        IF (@p_debug = 'Y')
+                        BEGIN
 
-                        -- Commit records in case an error is encountered
-                        IF (@@TRANCOUNT > 0)
-                            COMMIT TRAN
+                            INSERT DBShrpn.dbo.ghr_debug (text_line)
+                            VALUES
+                              ('EXEC DBShrpn.dbo.usp_hsp_upd_hasg_reassign')
+                            , ('  @asg_cur_id                  = ' + @v_single_quote + RTRIM(@emp_id)                                        + @v_single_quote)
+                            , (', @asg_cur_assign_to           = ' + @v_single_quote + @v_ASSIGNED_TO_CODE                                   + @v_single_quote)
+                            , (', @asg_cur_assign_id           = ' + @v_single_quote + RTRIM(@cur_ea_job_or_pos_id)                          + @v_single_quote)
+                            , (', @asg_cur_eff_date            = ' + @v_single_quote + CONVERT(char(8), @cur_ea_eff_date, 112)               + @v_single_quote)
+                            , (', @asg_cur_chgstamp            = ' +                   CONVERT(varchar, @cur_ea_chgstamp, 0)                                  )
+                            , (', @asg_new_assign_to           = ' + @v_single_quote + @v_ASSIGNED_TO_CODE                                   + @v_single_quote)
+                            , (', @asg_new_assign_id           = ' + @v_single_quote + RTRIM(@job_or_pos_id)                                 + @v_single_quote)
+                            , (', @asg_new_assign_reason       = ' + @v_single_quote + @v_EMPTY_SPACE                                        + @v_single_quote)
+                            , (', @asg_new_beg_date            = ' + @v_single_quote + CONVERT(char(8), @eff_date, 112)                    + @v_single_quote)
+                            , (', @asg_new_end_date            = ' + @v_single_quote + CONVERT(char(8), @v_END_OF_TIME_DATE, 112)            + @v_single_quote)
+                            , (', @asg_fte_error_level         = ' + @v_single_quote + @v_EMPTY_SPACE                                        + @v_single_quote)
+                            , (', @asg_incumbent_error_level   = ' + @v_single_quote + @v_EMPTY_SPACE                                        + @v_single_quote)    -- was 'R' in WTW
+                            , (', @asf_fs_error_level          = ' + @v_single_quote + @v_EMPTY_SPACE                                        + @v_single_quote)
+                            , (', @asg_new_work_time_ind       = ' + @v_single_quote + @w_work_tm_code                                       + @v_single_quote)
+                            , (', @asg_new_std_hours           = ' +                   CONVERT(varchar, @w_standard_work_hrs, 0)                              )
+                            , (', @asg_new_std_work_period     = ' + @v_single_quote + @w_standard_work_pd_id                                + @v_single_quote)
+                            , (', @asg_new_salary_chg_date     = ' + @v_single_quote + CONVERT(char(8), @eff_date, 112)                      + @v_single_quote)
+                            , (', @asg_new_pd_salry            = ' +                   CONVERT(varchar, @w_pd_salary_amt, 0)                                  )
+                            , (', @asg_new_hourly_rate         = ' +                   CONVERT(varchar, @w_hourly_pay_rate, 0)                                )
+                            , (', @asg_new_annual_salry        = ' +                   CONVERT(varchar, @w_annual_salary_amt, 0)                              )
+                            , (', @asg_new_fte                 = ' +                   CONVERT(varchar, @w_calc_fte, 0)                                       )
+                            , (', @app_offer_curr_code         = ' + @v_single_quote + @w_curr_code                                          + @v_single_quote)     -- char(03)
+                            , (', @app_offer_pd_salary_time_cd = ' + @v_single_quote + @w_pd_salary_tm_pd_id                                 + @v_single_quote)
+                            , (', @app_offer_org_chart_id      = ' + @v_single_quote + @v_ORGANIZATION_CHART_NAME                            + @v_single_quote)
+                            , (', @app_offer_org_unit_id       = ' + @v_single_quote + @v_EMPTY_SPACE                                        + @v_single_quote)
+                            , (', @app_offer_pay_hours_rpt_ind = ' + @v_single_quote + 'N'                                                   + @v_single_quote)
+                            , (', @app_offer_work_shift_code   = ' + @v_single_quote + @v_EMPTY_SPACE                                        + @v_single_quote)
+                            , (', @app_offer_pay_grade         = ' + @v_single_quote + @v_EMPTY_SPACE                                        + @v_single_quote)
+                            , (', @app_offer_points            = 0'                                                                                           )
+                            , (', @app_offer_salary_step       = 0'                                                                                           )
+                            , (', @app_offer_mgr_emp_id        = ' + @v_single_quote + @v_EMPTY_SPACE                                        + @v_single_quote)
+                            , (', @from_window                 = ' + @v_single_quote + 'HASG'                                                + @v_single_quote)
+                            , (', @w_primary_ind               = ' + @v_single_quote + 'Y'                                                   + @v_single_quote)
+                            , (', @w_new_guar_pd_salry         = 0'                                                                                           )
+                            , (', @w_new_guar_hourly_rate      = 0'                                                                                           )
+                            , (', @w_new_guar_annual_salry     = 0'                                                                                           )
+                            , (', @w_new_ref_pd_salry          = 0'                                                                                           )
+                            , (', @w_new_ref_hourly_rate       = 0'                                                                                           )
+                            , (', @w_new_ref_salry             = 0'                                                                                           )
+                            , (', @w_new_org_group             = ' +                   CONVERT(varchar, @v_ORGANIZATION_GROUP_ID, 0)                          )         -- NOT USED IN PROCEDURE
+                            , (', @app_new_shift_rate_id       = ' + @v_single_quote + @v_EMPTY_SPACE                                        + @v_single_quote)
+                            , (' ');
+
+                            -- Commit records in case an error is encountered
+                            IF (@@TRANCOUNT > 0)
+                                COMMIT TRAN
+                        END
+
 
                         SET @v_step_position = 'Emp Assignment - Reassign'
 
@@ -902,120 +932,126 @@ BEGIN
                         SET @v_step_position = 'Emp Assignment - Update Assignment Debug'
 
                         -- DEBUG
-                        INSERT DBShrpn.dbo.ghr_debug (text_line)
-                        VALUES ('EXEC DBShrpn.dbo.usp_hsp_upd_hasg')
-                        , ('@use_eff_date                    = ' + @v_single_quote + CONVERT(varchar, @eff_date, 112)                                        + @v_single_quote)         -- datetime
-                        , (', @use_end_date                  = ' + @v_single_quote + CONVERT(varchar, @v_END_OF_TIME_DATE, 112)                              + @v_single_quote)         -- datetime     -- NOT USED IN PROCEDURE
-                        , (', @employee_identifier           = ' + @v_single_quote + RTRIM(@emp_id)                                                          + @v_single_quote)         -- char(15)
-                        , (', @emp_asgmt_assigned_to_code    = ' + @v_single_quote + @v_ASSIGNED_TO_CODE                                                     + @v_single_quote)         -- char(01)
-                        , (', @emp_asgmt_job_or_pos_id       = ' + @v_single_quote + RTRIM(@job_or_pos_id)                                                   + @v_single_quote)         -- char(10)
-                        , (', @emp_asgmt_eff_date            = ' + @v_single_quote + CONVERT(varchar, @cur_ea_eff_date, 112)                                 + @v_single_quote)         -- datetime
-                        , (', @emp_asgmt_next_eff_date       = ' + @v_single_quote + CONVERT(varchar, @v_END_OF_TIME_DATE, 112)                              + @v_single_quote)         -- datetime
-                        , (', @emp_asgmt_prior_eff_dt        = ' + @v_single_quote + CONVERT(varchar, @cur_ea_prior_eff_date, 112)                                 + @v_single_quote)         -- datetime     -- NOT USED IN PROCEDURE
-                        , (', @emp_asgmt_begin_date          = ' + @v_single_quote + CONVERT(varchar, @cur_ea_begin_date, 112)                               + @v_single_quote)         -- datetime     ** since assignment didn't change then get original begin date
-                        , (', @emp_asgmt_end_date            = ' + @v_single_quote + CONVERT(varchar, @v_END_OF_TIME_DATE, 112)                              + @v_single_quote)         -- datetime
-                        , (', @emp_display_name              = ' + @v_single_quote + @v_EMPTY_SPACE                                                          + @v_single_quote)         -- char(45)     -- NOT USED IN PROCEDURE
-                        , (', @emp_status_code               = ' + @v_single_quote + @cur_stat_emp_status_code                                               + @v_single_quote)         -- char(01)     -- NOT USED IN PROCEDURE
-                        , (', @emp_status_change_date        = ' + @v_single_quote + CONVERT(varchar, @cur_stat_status_change_date, 112)                     + @v_single_quote)         -- datetime     -- NOT USED IN PROCEDURE
-                        , (', @w_job_or_pos_title            = ' + @v_single_quote + @v_EMPTY_SPACE                                                          + @v_single_quote)         -- char(10)     -- NOT USED IN PROCEDURE
-                        , (', @tm_pd_id                      = ' + @v_single_quote + @v_EMPTY_SPACE                                                          + @v_single_quote)         -- char(05)
-                        , (', @tm_pd_hrs                     = 0'                                                                                                             )         -- float        -- NOT USED IN PROCEDURE
-                        , (', @emp_asgmt_reason_code         = ' + @v_single_quote + @v_EMPTY_SPACE                                                          + @v_single_quote)         -- char(05)
-                        , (', @emp_prime_assignment_ind      = ' + @v_single_quote + 'Y'                                                                     + @v_single_quote)         -- char(01)
-                        , (', @emp_occupancy_code            = ' + @v_single_quote + '3'                                                                     + @v_single_quote)         -- char(01)
-                        , (', @emp_asgmt_official_title_code = ' + @v_single_quote + @v_EMPTY_SPACE                                                          + @v_single_quote)         -- char(05)
-                        , (', @emp_asgmt_official_title_date = ' + @v_single_quote + CONVERT(varchar, @v_END_OF_TIME_DATE, 112)                              + @v_single_quote)         -- datetime
-                        , (', @emp_autopay_ind               = ' + @v_single_quote + 'N'                                                                     + @v_single_quote)         -- char(1)
-                        , (', @emp_asgmt_annual_salary       = ' +                   CONVERT(varchar, @w_annual_salary_amt, 0)                                                )         -- money
-                        , (', @emp_asgmt_salary_curr_cd      = ' + @v_single_quote + @w_curr_code                                                            + @v_single_quote)         -- char(03)
-                        , (', @emp_asgmt_pd_salary           = ' +                   CONVERT(varchar, @w_pd_salary_amt, 0)                                                    )         -- money
-                        , (', @emp_pay_on_rptd_hrs_ind       = ' + @v_single_quote + @w_pay_on_reported_hrs_ind                                              + @v_single_quote)         -- char(01)
-                        , (', @emp_asgmt_hourly_pay_rate     = ' +                   CONVERT(varchar, @w_hourly_pay_rate, 0)                                                  )         -- float
-                        , (', @emp_asgmt_salary_change_type  = ' + @v_single_quote + 'M'                                                                     + @v_single_quote)         -- char(05)          -- Was 'M' in WTW
-                        , (', @emp_asgmt_standard_work_hrs   = ' +                   CONVERT(varchar, @w_standard_work_hrs, 0)                                                )         -- float
-                        , (', @emp_asgmt_standard_work_pd_id = ' + @v_single_quote + @w_standard_work_pd_id                                                  + @v_single_quote)         -- char(05)
-                        , (', @emp_asgmt_work_tm_code        = ' + @v_single_quote + @w_work_tm_code                                                         + @v_single_quote)         -- char(01)
-                        , (', @emp_pay_basis_code            = ' + @v_single_quote + @w_pay_basis_code                                                       + @v_single_quote)         -- char(01)
-                        , (', @emp_asgmt_salary_change_date  = ' + @v_single_quote + CONVERT(varchar, @eff_date, 112)                                        + @v_single_quote)         -- datetime
-                        , (', @emp_asgmt_pd_salary_tm_pd     = ' + @v_single_quote + RTRIM(@w_pd_salary_tm_pd_id)                                       + @v_single_quote)         -- char(05)
-                        , (', @emp_base_rate_tbl_id          = ' + @v_single_quote + @v_EMPTY_SPACE                                                          + @v_single_quote)         -- char(10)
-                        , (', @emp_base_rate_tbl_entry_code  = ' + @v_single_quote + @v_EMPTY_SPACE                                                          + @v_single_quote)         -- char(08)
-                        , (', @emp_exception_rate_ind        = ' + @v_single_quote + @v_EMPTY_SPACE                                                          + @v_single_quote)         -- char(01)
-                        , (', @emp_overtime_status_code      = ' + @v_single_quote + @w_overtime_status_code                                                 + @v_single_quote)         -- char(02)
-                        , (', @emp_standard_daily_work_hrs   = ' +                   CONVERT(varchar, @w_standard_daily_work_hrs, 0)                                          )         -- float
-                        , (', @pd_salary_pd_annlzg_factor    = 0.00'                                                                                                          )         -- float        -- NOT USED IN PROCEDURE
-                        , (', @pd_salary_pd_hrs              = 0.00'                                                                                                          )         -- float        -- NOT USED IN PROCEDURE
-                        , (', @emp_asgmt_salary_structure_id = ' + @v_single_quote + @v_EMPTY_SPACE                                                          + @v_single_quote)         -- char(10)
-                        , (', @emp_asgmt_increase_guidel_id  = ' + @v_single_quote + @v_EMPTY_SPACE                                                          + @v_single_quote)         -- char(10)
-                        , (', @emp_asgmt_pay_grade           = ' + @v_single_quote + @v_EMPTY_SPACE                                                          + @v_single_quote)         -- char(06)
-                        , (', @emp_asgmt_pay_grade_date      = ' + @v_single_quote + CONVERT(varchar, @v_END_OF_TIME_DATE, 112)                              + @v_single_quote)         -- datetime
-                        , (', @emp_asgmt_job_eval_points     = 0'                                                                                                             )         -- smallint
-                        , (', @emp_asgmt_salary_step         = 0'                                                                                                             )         -- smallint
-                        , (', @emp_asgmt_salary_step_date    = ' + @v_single_quote + CONVERT(varchar, @v_END_OF_TIME_DATE, 112)                              + @v_single_quote)         -- datetime
-                        , (', @emp_asgmt_phn1_type_code      = ' + @v_single_quote + 'WORK'                                                                  + @v_single_quote)         -- char(05)
-                        , (', @emp_asgmt_phn1_fmt_code       = ' + @v_single_quote + 'L34'                                                                   + @v_single_quote)         -- char(06)
-                        , (', @emp_asgmt_phn1_fmt_delimeter  = ' + @v_single_quote + '-'                                                                     + @v_single_quote)         -- char(01)
-                        , (', @emp_asgmt_phn2_type_code      = ' + @v_single_quote + @v_EMPTY_SPACE                                                          + @v_single_quote)         -- char(05)
-                        , (', @emp_asgmt_phn2_fmt_code       = ' + @v_single_quote + 'L34'                                                                   + @v_single_quote)         -- char(06)
-                        , (', @emp_asgmt_phn2_fmt_delimeter  = ' + @v_single_quote + '-'                                                                     + @v_single_quote)         -- char(01)
-                        , (', @emp_asgmt_phn1_intl_code      = ' + @v_single_quote + @v_EMPTY_SPACE                                                          + @v_single_quote)         -- char(04)
-                        , (', @emp_asgmt_phn1_country_code   = ' + @v_single_quote + @v_EMPTY_SPACE                                                          + @v_single_quote)         -- char(04)
-                        , (', @emp_asgmt_phn1_area_city_code = ' + @v_single_quote + @v_EMPTY_SPACE                                                          + @v_single_quote)         -- char(05)
-                        , (', @emp_asgmt_phn1_nbr            = ' + @v_single_quote + @v_EMPTY_SPACE                                                          + @v_single_quote)         -- char(12)
-                        , (', @emp_asgmt_phn1_ext_nbr        = ' + @v_single_quote + @v_EMPTY_SPACE                                                          + @v_single_quote)         -- char(05)
-                        , (', @emp_asgmt_phn2_intl_code      = ' + @v_single_quote + @v_EMPTY_SPACE                                                          + @v_single_quote)         -- char(04)
-                        , (', @emp_asgmt_phn2_country_code   = ' + @v_single_quote + @v_EMPTY_SPACE                                                          + @v_single_quote)         -- char(04)
-                        , (', @emp_asgmt_phn2_area_city_code = ' + @v_single_quote + @v_EMPTY_SPACE                                                          + @v_single_quote)         -- char(05)
-                        , (', @emp_asgmt_phn2_nbr            = ' + @v_single_quote + @v_EMPTY_SPACE                                                          + @v_single_quote)         -- char(12)
-                        , (', @emp_asgmt_phn2_ext_nbr        = ' + @v_single_quote + @v_EMPTY_SPACE                                                          + @v_single_quote)         -- char(05)
-                        , (', @emp_asgmt_user_amt_1          = ' +                   CONVERT(varchar, @cur_ea_user_amt_1, 0)                                                  )         -- float
-                        , (', @emp_asgmt_user_amt_2          = ' +                   CONVERT(varchar, @cur_ea_user_amt_2, 0)                                                  )         -- float
-                        , (', @emp_asgmt_user_code_1         = ' + @v_single_quote + @cur_ea_user_code_1                                                     + @v_single_quote)         -- char(05)
-                        , (', @emp_asgmt_user_code_2         = ' + @v_single_quote + @cur_ea_user_code_2                                                     + @v_single_quote)         -- char(05)
-                        , (', @emp_asgmt_user_date_1         = ' + @v_single_quote + CONVERT(varchar, @cur_ea_user_date_1, 112)                              + @v_single_quote)         -- datetime
-                        , (', @emp_asgmt_user_date_2         = ' + @v_single_quote + CONVERT(varchar, @cur_ea_user_date_2, 112)                              + @v_single_quote)         -- datetime
-                        , (', @emp_asgmt_user_ind_1          = ' + @v_single_quote + @cur_ea_user_ind_1                                                      + @v_single_quote)         -- char(01)
-                        , (', @emp_asgmt_user_ind_2          = ' + @v_single_quote + @cur_ea_user_ind_2                                                      + @v_single_quote)         -- char(01)
-                        , (', @emp_user_monetary_amt_1       = ' +                   CONVERT(varchar, @cur_ea_user_monetary_amt_1, 0)                                         )         -- money
-                        , (', @emp_user_monetary_amt_2       = ' +                   CONVERT(varchar, @cur_ea_user_monetary_amt_2, 0)                                         )         -- money
-                        , (', @emp_user_monetary_curr_code   = ' + @v_single_quote + @cur_ea_user_monetary_curr_code                                         + @v_single_quote)         -- char(03)
-                        , (', @emp_user_text_1               = ' + @v_single_quote + @cur_ea_user_text_1                                                     + @v_single_quote)         -- char(50)
-                        , (', @emp_user_text_2               = ' + @v_single_quote + @position_title                                                         + @v_single_quote)         -- char(50)
-                        , (', @emp_asgmt_org_chart_id        = ' + @v_single_quote + @v_EMPTY_SPACE                                                          + @v_single_quote)         -- char(64)      -- Was @v_ORGANIZATION_CHART_NAME
-                        , (', @emp_asgmt_org_unit_id         = ' + @v_single_quote + @v_EMPTY_SPACE                                                          + @v_single_quote)         -- char(240)
-                        , (', @emp_asgmt_org_change_reason   = ' + @v_single_quote + @v_EMPTY_SPACE                                                          + @v_single_quote)         -- char(05)
-                        , (', @emp_asgmt_loc_code            = ' + @v_single_quote + @v_EMPTY_SPACE                                                          + @v_single_quote)         -- char(10)
-                        , (', @emp_asgmt_mgr_emp_id          = ' + @v_single_quote + @v_EMPTY_SPACE                                                          + @v_single_quote)         -- char(15)
-                        , (', @emp_organization_group_id     = ' +                   CONVERT(varchar, @v_ORGANIZATION_GROUP_ID, 0)                                            )         -- float
-                        , (', @emp_regulatory_rtg_unit_code  = ' + @v_single_quote + @v_EMPTY_SPACE                                                          + @v_single_quote)         -- char(10)
-                        , (', @emp_unemployment_loc_code     = ' + @v_single_quote + @v_EMPTY_SPACE                                                          + @v_single_quote)         -- char(10)
-                        , (', @emp_shift_diff_rate_tbl_id    = ' + @v_single_quote + @v_EMPTY_SPACE                                                          + @v_single_quote)         -- char(10)
-                        , (', @emp_asgmt_work_shift_code     = ' + @v_single_quote + @v_EMPTY_SPACE                                                          + @v_single_quote)         -- char(05)
-                        , (', @emp_shift_diff_status_code    = ' + @v_single_quote + @v_SHIFT_DIFFERENTIAL_STATUS_CODE                                       + @v_single_quote)         -- char(02)
-                        , (', @emp_ref_annual_salary_amt     = 0'                                                                                                             )         -- money
-                        , (', @emp_ref_pd_salary_amt         = 0'                                                                                                             )         -- money
-                        , (', @emp_ref_pd_salary_tm_pd_id    = ' + @v_single_quote + @v_EMPTY_SPACE                                                          + @v_single_quote)         -- char(5)
-                        , (', @emp_ref_hourly_pay_rate       = 0'                                                                                                             )         -- float
-                        , (', @emp_guar_annual_salary_amt    = 0'                                                                                                             )         -- money
-                        , (', @emp_guar_pd_salary_amt        = 0'                                                                                                             )         -- money
-                        , (', @emp_guar_pd_salary_tm_pd_id   = ' + @v_single_quote + @v_EMPTY_SPACE                                                          + @v_single_quote)         -- char(5)
-                        , (', @emp_guar_hourly_pay_rate      = 0'                                                                                                             )         -- float
-                        , (', @w_emp_ver_code                = ' + @v_single_quote + @v_EMPTY_SPACE                                                          + @v_single_quote)         -- char(01)     -- NOT USED IN PROCEDURE
-                        , (', @w_emp_ver_count               = 0'                                                                                                             )         -- smallint     -- NOT USED IN PROCEDURE
-                        , (', @pos_allowed_fte               = 0'                                                                                                             )         -- float        -- NOT USED IN PROCEDURE
-                        , (', @pos_allowed_incumbents        = 0'                                                                                                             )         -- int          -- NOT USED IN PROCEDURE
-                        , (', @pos_standard_work_hrs         = 0'                                                                                                             )         -- float        -- NOT USED IN PROCEDURE
-                        , (', @pos_policy_id                 = ' + @v_single_quote + @v_EMPTY_SPACE                                                          + @v_single_quote)         -- char(08)     -- NOT USED IN PROCEDURE
-                        , (', @pol_incumb_val_err_lvl        = ' + @v_single_quote + @v_EMPTY_SPACE                                                          + @v_single_quote)         -- char(01)     -- NOT USED IN PROCEDURE
-                        , (', @pol_fte_val_err_lvl_cd        = ' + @v_single_quote + @v_EMPTY_SPACE                                                          + @v_single_quote)         -- char(01)     -- NOT USED IN PROCEDURE
-                        , (', @tm_pd_annlzg_factor           = 0'                                                                                                             )         -- float        -- NOT USED IN PROCEDURE
-                        , (', @emp_asgmt_next_asgd_to_code   = ' + @v_single_quote + @v_EMPTY_SPACE                                                          + @v_single_quote)         -- char(01)
-                        , (', @emp_asgmt_next_job_or_pos_id  = ' + @v_single_quote + @v_EMPTY_SPACE                                                          + @v_single_quote)         -- char(10)
-                        , (', @emp_asgmt_prior_asgd_to_code  = ' + @v_single_quote + @v_EMPTY_SPACE                                                          + @v_single_quote)         -- char(01)
-                        , (', @emp_asgmt_prior_job_or_pos_id = ' + @v_single_quote + @v_EMPTY_SPACE                                                          + @v_single_quote)         -- char(10)
-                        , (', @w_asg_life_end_date           = ' + @v_single_quote + CONVERT(varchar, @v_END_OF_TIME_DATE, 112)                              + @v_single_quote)         -- datetime     -- NOT USED IN PROCEDURE
-                        , (', @emp_chgstamp                  = ' +                   CONVERT(varchar, @cur_ea_chgstamp, 0)                                                    )         -- smallint
-                        , (' ');
+                        IF (@p_debug = 'Y')
+                        BEGIN
+
+                            INSERT DBShrpn.dbo.ghr_debug (text_line)
+                            VALUES
+                            ('EXEC DBShrpn.dbo.usp_hsp_upd_hasg')
+                            , ('@use_eff_date                    = ' + @v_single_quote + CONVERT(varchar, @eff_date, 112)                                        + @v_single_quote)         -- datetime
+                            , (', @use_end_date                  = ' + @v_single_quote + CONVERT(varchar, @v_END_OF_TIME_DATE, 112)                              + @v_single_quote)         -- datetime     -- NOT USED IN PROCEDURE
+                            , (', @employee_identifier           = ' + @v_single_quote + RTRIM(@emp_id)                                                          + @v_single_quote)         -- char(15)
+                            , (', @emp_asgmt_assigned_to_code    = ' + @v_single_quote + @v_ASSIGNED_TO_CODE                                                     + @v_single_quote)         -- char(01)
+                            , (', @emp_asgmt_job_or_pos_id       = ' + @v_single_quote + RTRIM(@job_or_pos_id)                                                   + @v_single_quote)         -- char(10)
+                            , (', @emp_asgmt_eff_date            = ' + @v_single_quote + CONVERT(varchar, @cur_ea_eff_date, 112)                                 + @v_single_quote)         -- datetime
+                            , (', @emp_asgmt_next_eff_date       = ' + @v_single_quote + CONVERT(varchar, @v_END_OF_TIME_DATE, 112)                              + @v_single_quote)         -- datetime
+                            , (', @emp_asgmt_prior_eff_dt        = ' + @v_single_quote + CONVERT(varchar, @cur_ea_prior_eff_date, 112)                                 + @v_single_quote)         -- datetime     -- NOT USED IN PROCEDURE
+                            , (', @emp_asgmt_begin_date          = ' + @v_single_quote + CONVERT(varchar, @cur_ea_begin_date, 112)                               + @v_single_quote)         -- datetime     ** since assignment didn't change then get original begin date
+                            , (', @emp_asgmt_end_date            = ' + @v_single_quote + CONVERT(varchar, @v_END_OF_TIME_DATE, 112)                              + @v_single_quote)         -- datetime
+                            , (', @emp_display_name              = ' + @v_single_quote + @v_EMPTY_SPACE                                                          + @v_single_quote)         -- char(45)     -- NOT USED IN PROCEDURE
+                            , (', @emp_status_code               = ' + @v_single_quote + @cur_stat_emp_status_code                                               + @v_single_quote)         -- char(01)     -- NOT USED IN PROCEDURE
+                            , (', @emp_status_change_date        = ' + @v_single_quote + CONVERT(varchar, @cur_stat_status_change_date, 112)                     + @v_single_quote)         -- datetime     -- NOT USED IN PROCEDURE
+                            , (', @w_job_or_pos_title            = ' + @v_single_quote + @v_EMPTY_SPACE                                                          + @v_single_quote)         -- char(10)     -- NOT USED IN PROCEDURE
+                            , (', @tm_pd_id                      = ' + @v_single_quote + @v_EMPTY_SPACE                                                          + @v_single_quote)         -- char(05)
+                            , (', @tm_pd_hrs                     = 0'                                                                                                             )         -- float        -- NOT USED IN PROCEDURE
+                            , (', @emp_asgmt_reason_code         = ' + @v_single_quote + @v_EMPTY_SPACE                                                          + @v_single_quote)         -- char(05)
+                            , (', @emp_prime_assignment_ind      = ' + @v_single_quote + 'Y'                                                                     + @v_single_quote)         -- char(01)
+                            , (', @emp_occupancy_code            = ' + @v_single_quote + '3'                                                                     + @v_single_quote)         -- char(01)
+                            , (', @emp_asgmt_official_title_code = ' + @v_single_quote + @v_EMPTY_SPACE                                                          + @v_single_quote)         -- char(05)
+                            , (', @emp_asgmt_official_title_date = ' + @v_single_quote + CONVERT(varchar, @v_END_OF_TIME_DATE, 112)                              + @v_single_quote)         -- datetime
+                            , (', @emp_autopay_ind               = ' + @v_single_quote + 'N'                                                                     + @v_single_quote)         -- char(1)
+                            , (', @emp_asgmt_annual_salary       = ' +                   CONVERT(varchar, @w_annual_salary_amt, 0)                                                )         -- money
+                            , (', @emp_asgmt_salary_curr_cd      = ' + @v_single_quote + @w_curr_code                                                            + @v_single_quote)         -- char(03)
+                            , (', @emp_asgmt_pd_salary           = ' +                   CONVERT(varchar, @w_pd_salary_amt, 0)                                                    )         -- money
+                            , (', @emp_pay_on_rptd_hrs_ind       = ' + @v_single_quote + @w_pay_on_reported_hrs_ind                                              + @v_single_quote)         -- char(01)
+                            , (', @emp_asgmt_hourly_pay_rate     = ' +                   CONVERT(varchar, @w_hourly_pay_rate, 0)                                                  )         -- float
+                            , (', @emp_asgmt_salary_change_type  = ' + @v_single_quote + 'M'                                                                     + @v_single_quote)         -- char(05)          -- Was 'M' in WTW
+                            , (', @emp_asgmt_standard_work_hrs   = ' +                   CONVERT(varchar, @w_standard_work_hrs, 0)                                                )         -- float
+                            , (', @emp_asgmt_standard_work_pd_id = ' + @v_single_quote + @w_standard_work_pd_id                                                  + @v_single_quote)         -- char(05)
+                            , (', @emp_asgmt_work_tm_code        = ' + @v_single_quote + @w_work_tm_code                                                         + @v_single_quote)         -- char(01)
+                            , (', @emp_pay_basis_code            = ' + @v_single_quote + @w_pay_basis_code                                                       + @v_single_quote)         -- char(01)
+                            , (', @emp_asgmt_salary_change_date  = ' + @v_single_quote + CONVERT(varchar, @eff_date, 112)                                        + @v_single_quote)         -- datetime
+                            , (', @emp_asgmt_pd_salary_tm_pd     = ' + @v_single_quote + RTRIM(@w_pd_salary_tm_pd_id)                                       + @v_single_quote)         -- char(05)
+                            , (', @emp_base_rate_tbl_id          = ' + @v_single_quote + @v_EMPTY_SPACE                                                          + @v_single_quote)         -- char(10)
+                            , (', @emp_base_rate_tbl_entry_code  = ' + @v_single_quote + @v_EMPTY_SPACE                                                          + @v_single_quote)         -- char(08)
+                            , (', @emp_exception_rate_ind        = ' + @v_single_quote + @v_EMPTY_SPACE                                                          + @v_single_quote)         -- char(01)
+                            , (', @emp_overtime_status_code      = ' + @v_single_quote + @w_overtime_status_code                                                 + @v_single_quote)         -- char(02)
+                            , (', @emp_standard_daily_work_hrs   = ' +                   CONVERT(varchar, @w_standard_daily_work_hrs, 0)                                          )         -- float
+                            , (', @pd_salary_pd_annlzg_factor    = 0.00'                                                                                                          )         -- float        -- NOT USED IN PROCEDURE
+                            , (', @pd_salary_pd_hrs              = 0.00'                                                                                                          )         -- float        -- NOT USED IN PROCEDURE
+                            , (', @emp_asgmt_salary_structure_id = ' + @v_single_quote + @v_EMPTY_SPACE                                                          + @v_single_quote)         -- char(10)
+                            , (', @emp_asgmt_increase_guidel_id  = ' + @v_single_quote + @v_EMPTY_SPACE                                                          + @v_single_quote)         -- char(10)
+                            , (', @emp_asgmt_pay_grade           = ' + @v_single_quote + @v_EMPTY_SPACE                                                          + @v_single_quote)         -- char(06)
+                            , (', @emp_asgmt_pay_grade_date      = ' + @v_single_quote + CONVERT(varchar, @v_END_OF_TIME_DATE, 112)                              + @v_single_quote)         -- datetime
+                            , (', @emp_asgmt_job_eval_points     = 0'                                                                                                             )         -- smallint
+                            , (', @emp_asgmt_salary_step         = 0'                                                                                                             )         -- smallint
+                            , (', @emp_asgmt_salary_step_date    = ' + @v_single_quote + CONVERT(varchar, @v_END_OF_TIME_DATE, 112)                              + @v_single_quote)         -- datetime
+                            , (', @emp_asgmt_phn1_type_code      = ' + @v_single_quote + 'WORK'                                                                  + @v_single_quote)         -- char(05)
+                            , (', @emp_asgmt_phn1_fmt_code       = ' + @v_single_quote + 'L34'                                                                   + @v_single_quote)         -- char(06)
+                            , (', @emp_asgmt_phn1_fmt_delimeter  = ' + @v_single_quote + '-'                                                                     + @v_single_quote)         -- char(01)
+                            , (', @emp_asgmt_phn2_type_code      = ' + @v_single_quote + @v_EMPTY_SPACE                                                          + @v_single_quote)         -- char(05)
+                            , (', @emp_asgmt_phn2_fmt_code       = ' + @v_single_quote + 'L34'                                                                   + @v_single_quote)         -- char(06)
+                            , (', @emp_asgmt_phn2_fmt_delimeter  = ' + @v_single_quote + '-'                                                                     + @v_single_quote)         -- char(01)
+                            , (', @emp_asgmt_phn1_intl_code      = ' + @v_single_quote + @v_EMPTY_SPACE                                                          + @v_single_quote)         -- char(04)
+                            , (', @emp_asgmt_phn1_country_code   = ' + @v_single_quote + @v_EMPTY_SPACE                                                          + @v_single_quote)         -- char(04)
+                            , (', @emp_asgmt_phn1_area_city_code = ' + @v_single_quote + @v_EMPTY_SPACE                                                          + @v_single_quote)         -- char(05)
+                            , (', @emp_asgmt_phn1_nbr            = ' + @v_single_quote + @v_EMPTY_SPACE                                                          + @v_single_quote)         -- char(12)
+                            , (', @emp_asgmt_phn1_ext_nbr        = ' + @v_single_quote + @v_EMPTY_SPACE                                                          + @v_single_quote)         -- char(05)
+                            , (', @emp_asgmt_phn2_intl_code      = ' + @v_single_quote + @v_EMPTY_SPACE                                                          + @v_single_quote)         -- char(04)
+                            , (', @emp_asgmt_phn2_country_code   = ' + @v_single_quote + @v_EMPTY_SPACE                                                          + @v_single_quote)         -- char(04)
+                            , (', @emp_asgmt_phn2_area_city_code = ' + @v_single_quote + @v_EMPTY_SPACE                                                          + @v_single_quote)         -- char(05)
+                            , (', @emp_asgmt_phn2_nbr            = ' + @v_single_quote + @v_EMPTY_SPACE                                                          + @v_single_quote)         -- char(12)
+                            , (', @emp_asgmt_phn2_ext_nbr        = ' + @v_single_quote + @v_EMPTY_SPACE                                                          + @v_single_quote)         -- char(05)
+                            , (', @emp_asgmt_user_amt_1          = ' +                   CONVERT(varchar, @cur_ea_user_amt_1, 0)                                                  )         -- float
+                            , (', @emp_asgmt_user_amt_2          = ' +                   CONVERT(varchar, @cur_ea_user_amt_2, 0)                                                  )         -- float
+                            , (', @emp_asgmt_user_code_1         = ' + @v_single_quote + @cur_ea_user_code_1                                                     + @v_single_quote)         -- char(05)
+                            , (', @emp_asgmt_user_code_2         = ' + @v_single_quote + @cur_ea_user_code_2                                                     + @v_single_quote)         -- char(05)
+                            , (', @emp_asgmt_user_date_1         = ' + @v_single_quote + CONVERT(varchar, @cur_ea_user_date_1, 112)                              + @v_single_quote)         -- datetime
+                            , (', @emp_asgmt_user_date_2         = ' + @v_single_quote + CONVERT(varchar, @cur_ea_user_date_2, 112)                              + @v_single_quote)         -- datetime
+                            , (', @emp_asgmt_user_ind_1          = ' + @v_single_quote + @cur_ea_user_ind_1                                                      + @v_single_quote)         -- char(01)
+                            , (', @emp_asgmt_user_ind_2          = ' + @v_single_quote + @cur_ea_user_ind_2                                                      + @v_single_quote)         -- char(01)
+                            , (', @emp_user_monetary_amt_1       = ' +                   CONVERT(varchar, @cur_ea_user_monetary_amt_1, 0)                                         )         -- money
+                            , (', @emp_user_monetary_amt_2       = ' +                   CONVERT(varchar, @cur_ea_user_monetary_amt_2, 0)                                         )         -- money
+                            , (', @emp_user_monetary_curr_code   = ' + @v_single_quote + @cur_ea_user_monetary_curr_code                                         + @v_single_quote)         -- char(03)
+                            , (', @emp_user_text_1               = ' + @v_single_quote + @cur_ea_user_text_1                                                     + @v_single_quote)         -- char(50)
+                            , (', @emp_user_text_2               = ' + @v_single_quote + @position_title                                                         + @v_single_quote)         -- char(50)
+                            , (', @emp_asgmt_org_chart_id        = ' + @v_single_quote + @v_EMPTY_SPACE                                                          + @v_single_quote)         -- char(64)      -- Was @v_ORGANIZATION_CHART_NAME
+                            , (', @emp_asgmt_org_unit_id         = ' + @v_single_quote + @v_EMPTY_SPACE                                                          + @v_single_quote)         -- char(240)
+                            , (', @emp_asgmt_org_change_reason   = ' + @v_single_quote + @v_EMPTY_SPACE                                                          + @v_single_quote)         -- char(05)
+                            , (', @emp_asgmt_loc_code            = ' + @v_single_quote + @v_EMPTY_SPACE                                                          + @v_single_quote)         -- char(10)
+                            , (', @emp_asgmt_mgr_emp_id          = ' + @v_single_quote + @v_EMPTY_SPACE                                                          + @v_single_quote)         -- char(15)
+                            , (', @emp_organization_group_id     = ' +                   CONVERT(varchar, @v_ORGANIZATION_GROUP_ID, 0)                                            )         -- float
+                            , (', @emp_regulatory_rtg_unit_code  = ' + @v_single_quote + @v_EMPTY_SPACE                                                          + @v_single_quote)         -- char(10)
+                            , (', @emp_unemployment_loc_code     = ' + @v_single_quote + @v_EMPTY_SPACE                                                          + @v_single_quote)         -- char(10)
+                            , (', @emp_shift_diff_rate_tbl_id    = ' + @v_single_quote + @v_EMPTY_SPACE                                                          + @v_single_quote)         -- char(10)
+                            , (', @emp_asgmt_work_shift_code     = ' + @v_single_quote + @v_EMPTY_SPACE                                                          + @v_single_quote)         -- char(05)
+                            , (', @emp_shift_diff_status_code    = ' + @v_single_quote + @v_SHIFT_DIFFERENTIAL_STATUS_CODE                                       + @v_single_quote)         -- char(02)
+                            , (', @emp_ref_annual_salary_amt     = 0'                                                                                                             )         -- money
+                            , (', @emp_ref_pd_salary_amt         = 0'                                                                                                             )         -- money
+                            , (', @emp_ref_pd_salary_tm_pd_id    = ' + @v_single_quote + @v_EMPTY_SPACE                                                          + @v_single_quote)         -- char(5)
+                            , (', @emp_ref_hourly_pay_rate       = 0'                                                                                                             )         -- float
+                            , (', @emp_guar_annual_salary_amt    = 0'                                                                                                             )         -- money
+                            , (', @emp_guar_pd_salary_amt        = 0'                                                                                                             )         -- money
+                            , (', @emp_guar_pd_salary_tm_pd_id   = ' + @v_single_quote + @v_EMPTY_SPACE                                                          + @v_single_quote)         -- char(5)
+                            , (', @emp_guar_hourly_pay_rate      = 0'                                                                                                             )         -- float
+                            , (', @w_emp_ver_code                = ' + @v_single_quote + @v_EMPTY_SPACE                                                          + @v_single_quote)         -- char(01)     -- NOT USED IN PROCEDURE
+                            , (', @w_emp_ver_count               = 0'                                                                                                             )         -- smallint     -- NOT USED IN PROCEDURE
+                            , (', @pos_allowed_fte               = 0'                                                                                                             )         -- float        -- NOT USED IN PROCEDURE
+                            , (', @pos_allowed_incumbents        = 0'                                                                                                             )         -- int          -- NOT USED IN PROCEDURE
+                            , (', @pos_standard_work_hrs         = 0'                                                                                                             )         -- float        -- NOT USED IN PROCEDURE
+                            , (', @pos_policy_id                 = ' + @v_single_quote + @v_EMPTY_SPACE                                                          + @v_single_quote)         -- char(08)     -- NOT USED IN PROCEDURE
+                            , (', @pol_incumb_val_err_lvl        = ' + @v_single_quote + @v_EMPTY_SPACE                                                          + @v_single_quote)         -- char(01)     -- NOT USED IN PROCEDURE
+                            , (', @pol_fte_val_err_lvl_cd        = ' + @v_single_quote + @v_EMPTY_SPACE                                                          + @v_single_quote)         -- char(01)     -- NOT USED IN PROCEDURE
+                            , (', @tm_pd_annlzg_factor           = 0'                                                                                                             )         -- float        -- NOT USED IN PROCEDURE
+                            , (', @emp_asgmt_next_asgd_to_code   = ' + @v_single_quote + @v_EMPTY_SPACE                                                          + @v_single_quote)         -- char(01)
+                            , (', @emp_asgmt_next_job_or_pos_id  = ' + @v_single_quote + @v_EMPTY_SPACE                                                          + @v_single_quote)         -- char(10)
+                            , (', @emp_asgmt_prior_asgd_to_code  = ' + @v_single_quote + @v_EMPTY_SPACE                                                          + @v_single_quote)         -- char(01)
+                            , (', @emp_asgmt_prior_job_or_pos_id = ' + @v_single_quote + @v_EMPTY_SPACE                                                          + @v_single_quote)         -- char(10)
+                            , (', @w_asg_life_end_date           = ' + @v_single_quote + CONVERT(varchar, @v_END_OF_TIME_DATE, 112)                              + @v_single_quote)         -- datetime     -- NOT USED IN PROCEDURE
+                            , (', @emp_chgstamp                  = ' +                   CONVERT(varchar, @cur_ea_chgstamp, 0)                                                    )         -- smallint
+                            , (' ');
+
+                        END
 
                         -- Commit records in case an error is encountered
                         IF (@@TRANCOUNT > 0)

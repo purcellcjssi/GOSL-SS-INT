@@ -27,6 +27,7 @@ GO
         @p_batchname     = Job Scheduler Batch Name (i.e. 'GHR')
         @p_qualifier     = Job Scheduler Qualifier (i.e. 'INTERFACES')
         @p_activity_date = Current System Date
+        @p_debug         = Debug flag (Y/N) Enables logging to table dbo.ghr_debug
 
 
     Example:
@@ -49,6 +50,7 @@ GO
                                                         - default setting handled in usp_sel_employee_events
     2.0.00  09/14/2026  CJP                     - Phase III
                                                     1) Updated bad error messages to include 'bypassing record' in the description for clarity
+            11/23/2026  CJP                         2) Added logic to enable dynamic logging
 
 ************************************************************************************/
 
@@ -58,6 +60,7 @@ CREATE PROCEDURE dbo.usp_ins_pay_element
     , @p_batchname          varchar(08)
     , @p_qualifier          varchar(30)
     , @p_activity_date      datetime
+    , @p_debug              char(1) = 'N'
     )
 AS
 
@@ -66,6 +69,7 @@ BEGIN
     SET NOCOUNT ON
 
     DECLARE @v_step_position                    varchar(255)            = 'Begin Procedure'
+    DECLARE @v_single_quote						char(01)                = char(39)
 
     DECLARE @v_EVENT_ID_SALARY_CHANGE           char(2)                 = '02'
     DECLARE @v_EVENT_ID_TRANSFER                char(2)                 = '03'
@@ -236,6 +240,26 @@ BEGIN
 
 
     BEGIN TRY
+
+        ---------------------------------------------------------------------------
+        -- Log procedure parameter values
+        ---------------------------------------------------------------------------
+        IF (@p_debug = 'Y')
+        BEGIN
+
+            INSERT INTO DBShrpn.dbo.ghr_debug (text_line)
+            VALUES
+                  (REPLICATE('*', 50))
+                ,('Procedure DBShrpn.dbo.usp_ins_pay_element - Parameters:')
+                ,('@p_user_id = '       + @v_single_quote + @p_user_id                              + @v_single_quote)
+                ,('@p_batchname = '     + @v_single_quote + @p_batchname                            + @v_single_quote)
+                ,('@p_qualifier = '     + @v_single_quote + @p_qualifier                            + @v_single_quote)
+                ,('@p_activity_date = ' + @v_single_quote + CONVERT(char(8), @p_activity_date, 112) + @v_single_quote)
+                ,('@p_debug = '         + @v_single_quote + @p_debug                                + @v_single_quote)
+                ,(REPLICATE('*', 50))
+                ,('')
+
+        END
 
 
         SET @v_step_position = 'Declaring cursor crsrHR'
@@ -598,14 +622,14 @@ BEGIN
                 SELECT   @i_pay_element_exists   =   'N'
 
                 SELECT @i_eff_date           = epe.eff_date
-                    , @i_stop_date          = epe.stop_date
-                    , @i_pay_element_exists = 'Y'
-                    , @i_calc_meth_code     = epe.calc_meth_code   -- employee's calc method
+                     , @i_stop_date          = epe.stop_date
+                     , @i_pay_element_exists = 'Y'
+                     , @i_calc_meth_code     = epe.calc_meth_code   -- employee's calc method
                 FROM DBShrpn.dbo.emp_pay_element epe
-                WHERE epe.emp_id         = @emp_id
-                AND epe.empl_id        = @empl_id
-                AND epe.pay_element_id = @pay_element_id
-                AND epe.next_eff_date  = @v_END_OF_TIME_DATE
+                WHERE (epe.emp_id         = @emp_id)
+                  AND (epe.empl_id        = @empl_id)
+                  AND (epe.pay_element_id = @pay_element_id)
+                  AND (epe.next_eff_date  = @v_END_OF_TIME_DATE)
 
                 --   AND epe.eff_date       =   (
                 --                              SELECT MAX(t.eff_date)
@@ -620,7 +644,7 @@ BEGIN
                 --   Check to see that the new effective date is greater than the current effective date
                 ---------------------------------------------------------------------------
                 IF (@i_pay_element_exists = 'Y') AND
-                (@i_eff_date           > @eff_date)
+                   (@i_eff_date           > @eff_date)
                     BEGIN
 
                         SET @msg_id = 'U00027'
@@ -673,7 +697,7 @@ BEGIN
                         SET @v_step_position = 'Validation - ' + RTRIM(@msg_id)
 
                         -- Convert date to string for log table
-                        SET @w_msg_text_2 = CONVERT(char(8), @cur_eempl_pay_through_date, 112)
+                        SET @w_msg_text_2 = CONVERT(varchar, @cur_eempl_pay_through_date, 112)
 
                         INSERT INTO #tbl_ghr_msg
                         SELECT @msg_id                   AS msg_id
@@ -756,20 +780,126 @@ BEGIN
                             )
                     BEGIN
 
-                        -- IF (@i_pay_element_exists = 'Y') AND  -- record exists but <> eff date
-                        --    --(CONVERT(date, @i_stop_date) < CONVERT(date, @end_date))    -- compare old stop date with eot date. @end_date hardcoded to 12/31/2999
-                        --    (@i_stop_date < @v_END_OF_TIME_DATE)
-                        --     BEGIN
-                        --         SET @v_step_position = 'Pay Element Setup - Pay Element Exists'
+                        IF (@p_debug = 'Y')
+                        BEGIN
 
-                        --         -- Update existing record with new stop date
-                        --         UPDATE DBShrpn.dbo.emp_pay_element
-                        --         SET  stop_date     = @v_END_OF_TIME_DATE
-                        --         WHERE emp_id       = @i_emp_id
-                        --         AND empl_id        = @i_empl_id
-                        --         AND pay_element_id = @i_pay_element_id
-                        --         AND eff_date       = @i_eff_date
-                        --     END
+                            SET @v_step_position = 'DEBUG - Pay Element Setup - Exec DBShrpn.dbo.usp_ins_hepy_insert '
+
+                            INSERT DBShrpn.dbo.ghr_debug (text_line)
+                            VALUES
+                                ('EXEC DBShrpn.dbo.usp_ins_hepy_insert')
+                                , ('@w_stop_date                     = ' + @v_single_quote + CONVERT(varchar, @end_date, 112)                       + @v_single_quote)
+                                , (', @p_emp_id                      = ' + @v_single_quote + RTRIM(@emp_id)                                         + @v_single_quote)
+                                , (', @p_empl_id                     = ' + @v_single_quote + RTRIM(@empl_id)                                        + @v_single_quote)
+                                , (', @p_pay_element_id              = ' + @v_single_quote + RTRIM(@pay_element_id)                                 + @v_single_quote)
+                                , (', @p_eff_date                    = ' + @v_single_quote + CONVERT(varchar, @eff_date, 112)                       + @v_single_quote)
+                                , (', @p_prior_eff_date              = ' + @v_single_quote + CONVERT(varchar, @w_prior_eff_date, 112)               + @v_single_quote)
+                                , (', @p_next_eff_date               = ' + @v_single_quote + CONVERT(varchar, @w_next_eff_date, 112)                + @v_single_quote)
+                                , (', @p_inact_by_pay_element_ind    = ' + @v_single_quote + RTRIM(@w_inact_by_pay_element_ind)                     + @v_single_quote)
+                                , (', @p_start_date                  = ' + @v_single_quote + CONVERT(varchar, @begin_date, 112)                     + @v_single_quote)
+                                , (', @p_stop_date                   = ' + @v_single_quote + CONVERT(varchar, @end_date, 112)                       + @v_single_quote)
+                                , (', @p_change_reason_code          = ' + @v_single_quote + RTRIM(@w_change_reason_code)                           + @v_single_quote)
+                                , (', @p_pay_ele_pay_pd_sched_code   = ' + @v_single_quote + RTRIM(@w_pay_ele_pay_pd_sched_code)                    + @v_single_quote)
+                                , (', @p_calc_meth_code              = ' + @v_single_quote + RTRIM(@w_calc_meth_code)                               + @v_single_quote)
+                                , (', @p_standard_calc_factor_1      = ' +                   CONVERT(varchar, @emp_calculation, 0))
+                                , (', @p_standard_calc_factor_2      = ' +                   CONVERT(varchar, @w_standard_calc_factor_2, 0))
+                                , (', @p_special_calc_factor_1       = ' +                   CONVERT(varchar, @w_special_calc_factor_1, 0))
+                                , (', @p_special_calc_factor_2       = ' +                   CONVERT(varchar, @w_special_calc_factor_2, 0))
+                                , (', @p_special_calc_factor_3       = ' +                   CONVERT(varchar, @w_special_calc_factor_3, 0))
+                                , (', @p_special_calc_factor_4       = ' +                   CONVERT(varchar, @w_special_calc_factor_4, 0))
+                                , (', @p_rate_tbl_id                 = ' + @v_single_quote + RTRIM(@w_rate_tbl_id)                                  + @v_single_quote)
+                                , (', @p_rate_code                   = ' + @v_single_quote + RTRIM(@w_rate_code)                                    + @v_single_quote)
+                                , (', @p_payee_name                  = ' + @v_single_quote + RTRIM(@w_payee_name)                                   + @v_single_quote)
+                                , (', @p_payee_pmt_sched_code        = ' + @v_single_quote + RTRIM(@w_payee_pmt_sched_code)                         + @v_single_quote)
+                                , (', @p_payee_bank_transit_nbr      = ' + @v_single_quote + RTRIM(@w_payee_bank_transit_nbr)                       + @v_single_quote)
+                                , (', @p_payee_bank_acct_nbr         = ' + @v_single_quote + RTRIM(@w_payee_bank_acct_nbr)                          + @v_single_quote)
+                                , (', @p_pmt_ref_nbr                 = ' + @v_single_quote + RTRIM(@w_pmt_ref_nbr)                                  + @v_single_quote)
+                                , (', @p_pmt_ref_name                = ' + @v_single_quote + RTRIM(@w_pmt_ref_name)                                 + @v_single_quote)
+                                , (', @p_vendor_id                   = ' + @v_single_quote + RTRIM(@w_vendor_id)                                    + @v_single_quote)
+                                , (', @p_limit_amt                   = ' +                   CONVERT(varchar, @w_limit_amt, 0) )
+                                , (', @p_guaranteed_net_pay_amt      = ' +                   CONVERT(varchar, @w_guaranteed_net_pay_amt, 0))
+                                , (', @p_start_after_pay_element_id  = ' + @v_single_quote + RTRIM(@w_start_after_pay_element_id)                   + @v_single_quote)
+                                , (', @p_indiv_addr_typ_to_prt_code  = ' + @v_single_quote + RTRIM(@w_indiv_addr_typ_to_prt_code)                   + @v_single_quote)
+                                , (', @p_bank_id                     = ' + @v_single_quote + RTRIM(@w_bank_id)                                      + @v_single_quote)
+                                , (', @p_dir_dep_bank_acct_nbr       = ' + @v_single_quote + RTRIM(@w_dir_dep_bank_acct_nbr)                        + @v_single_quote)
+                                , (', @p_bank_acct_type_code         = ' + @v_single_quote + RTRIM(@w_bank_acct_type_code)                          + @v_single_quote)
+                                , (', @p_pay_pd_arrs_rec_fixed_amt   = ' +                   CONVERT(varchar, @w_pay_pd_arrs_rec_fixed_amt, 0))
+                                , (', @p_pay_pd_arrs_rec_fixed_pct   = ' +                   CONVERT(varchar, @w_pay_pd_arrs_rec_fixed_pct, 0))
+                                , (', @p_min_pay_pd_recovery_amt     = ' +                   CONVERT(varchar, @w_min_pay_pd_recovery_amt, 0))
+                                , (', @p_user_amt_1                  = ' +                   CONVERT(varchar, @w_user_amt_1, 0))
+                                , (', @p_user_amt_2                  = ' +                   CONVERT(varchar, @w_user_amt_2, 0))
+                                , (', @p_user_monetary_amt_1         = ' +                   CONVERT(varchar, @w_user_monetary_amt_1, 0))
+                                , (', @p_user_monetary_amt_2         = ' +                   CONVERT(varchar, @w_user_monetary_amt_2, 0))
+                                , (', @p_user_monetary_curr_code     = ' + @v_single_quote + RTRIM(@w_user_monetary_curr_code)                      + @v_single_quote)
+                                , (', @p_user_code_1                 = ' + @v_single_quote + RTRIM(@w_user_code_1)                                  + @v_single_quote)
+                                , (', @p_user_code_2                 = ' + @v_single_quote + RTRIM(@w_user_code_2)                                  + @v_single_quote)
+                                , (', @p_user_date_1                 = ' + @v_single_quote + CONVERT(varchar, @w_user_date_1, 112)                  + @v_single_quote)
+                                , (', @p_user_date_2                 = ' + @v_single_quote + CONVERT(varchar, @w_user_date_2, 112)                  + @v_single_quote)
+                                , (', @p_user_ind_1                  = ' + @v_single_quote + RTRIM(@w_user_ind_1)                                   + @v_single_quote)
+                                , (', @p_user_ind_2                  = ' + @v_single_quote + RTRIM(@w_user_ind_2)                                   + @v_single_quote)
+                                , (', @p_user_text_1                 = ' + @v_single_quote + RTRIM(@w_user_text_1)                                  + @v_single_quote)
+                                , (', @p_user_text_2                 = ' + @v_single_quote + RTRIM(@w_user_text_2)                                  + @v_single_quote)
+                                , (', @p_chgstamp                    = ' +                   CONVERT(varchar, @w_chgstamp, 0))
+                                , (', @p_epend_emp_id                = ' + @v_single_quote + RTRIM(@w_epend_emp_id)                                 + @v_single_quote)
+                                , (', @p_epend_empl_id               = ' + @v_single_quote + RTRIM(@w_epend_empl_id)                                + @v_single_quote)
+                                , (', @p_epend_pay_element_id        = ' + @v_single_quote + RTRIM(@w_epend_pay_element_id)                         + @v_single_quote)
+                                , (', @p_epend_arrears_bal_amt       = ' +                   CONVERT(varchar, @w_epend_arrears_bal_amt, 0))
+                                , (', @p_epend_rec_ovr_nbr_pay_pds   = ' +                   CONVERT(varchar, @w_epend_rec_ovr_nbr_pay_pds, 0))
+                                , (', @p_epend_wh_status_code        = ' + @v_single_quote + RTRIM(@w_epend_wh_status_code)                         + @v_single_quote)
+                                , (', @p_epend_calc_last_pay_pd_ind  = ' + @v_single_quote + RTRIM(@w_epend_calc_last_pay_pd_ind)                   + @v_single_quote)
+                                , (', @p_epend_prenotif_chk_date     = ' + @v_single_quote + CONVERT(varchar, @w_epend_prenotif_chk_date, 112)      + @v_single_quote)
+                                , (', @p_epend_prenotification_code  = ' + @v_single_quote + RTRIM(@w_epend_prenotification_code)                   + @v_single_quote)
+                                , (', @p_epend_chgstamp              = ' +                   CONVERT(varchar, @w_epend_chgstamp, 0))
+                                , (', @p_epec_emp_id                 = ' + @v_single_quote + RTRIM(@w_epec_emp_id)                                  + @v_single_quote)
+                                , (', @p_epec_empl_id                = ' + @v_single_quote + RTRIM(@w_epec_empl_id)                                 + @v_single_quote)
+                                , (', @p_epec_pay_element_id         = ' + @v_single_quote + RTRIM(@w_epec_pay_element_id)                          + @v_single_quote)
+                                , (', @p_epec_start_date             = ' + @v_single_quote + CONVERT(varchar, @w_epec_start_date, 112)              + @v_single_quote)
+                                , (', @p_epec_comnt_type_code        = ' + @v_single_quote + RTRIM(@w_epec_comnt_type_code)                         + @v_single_quote)
+                                , (', @p_epec_seq_nbr                = ' +                   CONVERT(varchar, @w_epec_seq_nbr, 0))
+                                , (', @p_epec_comnt_text             = ' + @v_single_quote + RTRIM(@w_epec_comnt_text)                              + @v_single_quote)
+                                , (', @p_epec_chgstamp               = ' +                   CONVERT(varchar, @w_epec_chgstamp, 0))
+                                , (', @p_pe_descp                    = ' + @v_single_quote + RTRIM(@w_pe_descp)                                     + @v_single_quote)
+                                , (', @p_pe_type                     = ' + @v_single_quote + RTRIM(@w_pe_type)                                      + @v_single_quote)
+                                , (', @p_pe_earning_type             = ' + @v_single_quote + RTRIM(@w_pe_earning_type)                              + @v_single_quote)
+                                , (', @p_pe_deduction_type           = ' + @v_single_quote + RTRIM(@w_pe_deduction_type)                            + @v_single_quote)
+                                , (', @p_pe_pay_pd_sched             = ' + @v_single_quote + RTRIM(@w_pe_pay_pd_sched)                              + @v_single_quote)
+                                , (', @p_pe_calc_meth                = ' + @v_single_quote + RTRIM(@w_pe_calc_meth)                                 + @v_single_quote)
+                                , (', @p_pe_stndrd_calc_fac_1        = ' +                   CONVERT(varchar, @w_pe_stndrd_calc_fac_1, 0))
+                                , (', @p_pe_stndrd_calc_fac_2        = ' +                   CONVERT(varchar, @w_pe_stndrd_calc_fac_2, 0))
+                                , (', @p_pe_spec_calc_fac_1          = ' +                   CONVERT(varchar, @w_pe_spec_calc_fac_1, 0))
+                                , (', @p_pe_spec_calc_fac_2          = ' +                   CONVERT(varchar, @w_pe_spec_calc_fac_2, 0))
+                                , (', @p_pe_spec_calc_fac_3          = ' +                   CONVERT(varchar, @w_pe_spec_calc_fac_3, 0))
+                                , (', @p_pe_spec_calc_fac_4          = ' +                   CONVERT(varchar, @w_pe_spec_calc_fac_4, 0))
+                                , (', @p_pe_limit_amt                = ' +                   CONVERT(varchar, @w_pe_limit_amt, 0))
+                                , (', @p_pe_limit_cyc_type           = ' + @v_single_quote + RTRIM(@w_pe_limit_cyc_type)                            + @v_single_quote)
+                                , (', @p_pe_ded_rec_meth             = ' + @v_single_quote + RTRIM(@w_pe_ded_rec_meth)                              + @v_single_quote)
+                                , (', @p_pe_rec_fixed_amt            = ' +                   CONVERT(varchar, @w_pe_rec_fixed_amt, 0))
+                                , (', @p_pe_rec_fixed_pct            = ' +                   CONVERT(varchar, @w_pe_rec_fixed_pct, 0))
+                                , (', @p_pe_min_pay_pd_rec_amt       = ' +                   CONVERT(varchar, @w_pe_min_pay_pd_rec_amt, 0))
+                                , (', @p_pe_rate_tbl_id              = ' + @v_single_quote + RTRIM(@w_pe_rate_tbl_id)                               + @v_single_quote)
+                                , (', @p_pe_ben_plan_id              = ' + @v_single_quote + RTRIM(@w_pe_ben_plan_id)                               + @v_single_quote)
+                                , (', @p_rt_descp                    = ' + @v_single_quote + RTRIM(@w_rt_descp)                                     + @v_single_quote)
+                                , (', @p_rte_descp                   = ' + @v_single_quote + RTRIM(@w_rte_descp)                                    + @v_single_quote)
+                                , (', @p_epel_towards_lmt_amt        = ' +                   CONVERT(varchar, @w_epel_towards_lmt_amt, 0))
+                                , (', @p_tpp_descp                   = ' + @v_single_quote + RTRIM(@w_tpp_descp)                                    + @v_single_quote)
+                                , (', @p_comments_flag               = ' + @v_single_quote + RTRIM(@w_comments_flag)                                + @v_single_quote)
+                                , (', @p_current_ver_eff_date        = ' + @v_single_quote + RTRIM(@w_current_ver_eff_date)                         + @v_single_quote)
+                                , (', @p_pe_curr_code                = ' + @v_single_quote + RTRIM(@w_pe_curr_code)                                 + @v_single_quote)
+                                , (', @p_scrty_cat_code              = ' + @v_single_quote + RTRIM(@w_scrty_cat_code)                               + @v_single_quote)
+                                , (', @p_original_stop_date          = ' + @v_single_quote + CONVERT(varchar, @w_original_stop_date, 112)           + @v_single_quote)
+                                , (', @p_pension_tot_distn_ind       = ' + @v_single_quote + RTRIM(@w_pension_tot_distn_ind)                        + @v_single_quote)
+                                , (', @p_pension_distn_code_1        = ' + @v_single_quote + RTRIM(@w_pension_distn_code_1)                         + @v_single_quote)
+                                , (', @p_pension_distn_code_2        = ' + @v_single_quote + RTRIM(@w_pension_distn_code_2)                         + @v_single_quote)
+                                , (', @p_pre_1990_rpp_ctrb_type      = ' + @v_single_quote + RTRIM(@w_pre_1990_rpp_ctrb_type)                       + @v_single_quote)
+                                , (', @p_first_roth_ctrb             = ' + @v_single_quote + RTRIM(@w_first_roth_ctrb)                              + @v_single_quote)
+                                , (', @p_ira_sep_simple_ind          = ' + @v_single_quote + RTRIM(@w_ira_sep_simple_ind)                           + @v_single_quote)
+                                , (', @p_txbl_amt_not_det_ind        = ' + @v_single_quote + RTRIM(@w_txbl_amt_not_det_ind)                         + @v_single_quote)
+                                , (', @p_result_set_ind              = ' + @v_single_quote + RTRIM(@w_result_set_ind)                               + @v_single_quote)
+                                , (', @ret                           = ' +                   CONVERT(varchar, @v_ret_val_usp_ins_hepy_insert, 0))
+                                , ('')
+
+                        END
+
 
                         SET @v_step_position = 'Pay Element Setup - Exec DBShrpn.dbo.usp_ins_hepy_insert'
 
@@ -924,6 +1054,15 @@ BEGIN
                         --           AND eff_date       = @eff_date  --@eff_date
                         --     END
 
+                        IF (@p_debug = 'Y')
+                        BEGIN
+                            INSERT DBShrpn.dbo.ghr_debug (text_line)
+                            VALUES
+                                ('EXEC DBShrpn.dbo.usp_ins_hepy_insert Return Code: ' + CONVERT(varchar, @v_ret_val_usp_ins_hepy_insert, 0))
+                                ,('')
+                                ,('@i_pay_element_exists: ' + @v_single_quote + RTRIM(@i_pay_element_exists) + @v_single_quote)
+                                ,('')
+                        END
 
                         IF (@i_pay_element_exists = 'Y')
                             BEGIN
@@ -933,18 +1072,19 @@ BEGIN
                                 --  Current Record
                                 UPDATE DBShrpn.dbo.emp_pay_element
                                 SET prior_eff_date = @i_eff_date
-                                WHERE emp_id         = @emp_id
-                                AND empl_id        = @empl_id
-                                AND pay_element_id = @pay_element_id
-                                AND eff_date       = @eff_date     --@eff_date
+                                WHERE (emp_id         = @emp_id)
+                                  AND (empl_id        = @empl_id)
+                                  AND (pay_element_id = @pay_element_id)
+                                  AND (eff_date       = @eff_date)
 
                                 -- Prior Record
                                 UPDATE DBShrpn.dbo.emp_pay_element
-                                SET next_eff_date =   @eff_date     --@eff_date
-                                WHERE emp_id         = @emp_id
-                                AND empl_id        = @empl_id
-                                AND pay_element_id = @pay_element_id
-                                AND eff_date       = @i_eff_date
+                                SET next_eff_date =   @eff_date
+                                WHERE (emp_id         = @emp_id)
+                                  AND (empl_id        = @empl_id)
+                                  AND (pay_element_id = @pay_element_id)
+                                  AND (eff_date       = @i_eff_date)
+
                             END
 
                     END
